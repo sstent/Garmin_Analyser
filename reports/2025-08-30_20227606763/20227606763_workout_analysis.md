@@ -1,6 +1,6 @@
 # Cycling Workout Analysis Report
 
-*Generated on 2025-08-30 19:02:07*
+*Generated on 2025-08-30 20:15:15*
 
 **Bike Configuration:** 38t chainring, 20t cog, 22lbs bike weight
 **Wheel Specs:** 700c wheel + 46mm tires (circumference: 2.49m)
@@ -46,7 +46,7 @@
 
 ## Workout Analysis Charts
 Detailed charts showing power output, heart rate, and elevation profiles:
-![Workout Analysis Charts](20227606763_workout_charts.png)
+![Workout Analysis Charts](None_workout_charts.png)
 
 ## Minute-by-Minute Analysis
 | Min | Dist (km) | Avg Speed (km/h) | Avg Cadence | Avg HR | Max HR | Avg Gradient (%) | Elevation Δ (m) | Est Avg Power (W) |

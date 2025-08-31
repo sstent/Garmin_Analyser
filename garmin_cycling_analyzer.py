@@ -225,6 +225,57 @@ class GarminWorkoutAnalyzer:
         print("Failed to download activity in any supported format")
         return None
     
+    def download_all_workouts(self) -> None:
+        """Download all cycling activities without analysis."""
+        if not self.garmin_client:
+            if not self.connect_to_garmin():
+                return
+        
+        try:
+            activities = self.garmin_client.get_activities(0, 1000)  # Get up to 1000 activities
+            if not activities:
+                print("No activities found")
+                return
+                
+            cycling_keywords = ['cycling', 'bike', 'road_biking', 'mountain_biking', 'indoor_cycling', 'biking']
+            cycling_activities = []
+            
+            for activity in activities:
+                activity_type = activity.get('activityType', {})
+                type_key = activity_type.get('typeKey', '').lower()
+                type_name = str(activity_type.get('typeId', '')).lower()
+                activity_name = activity.get('activityName', '').lower()
+                
+                if any(keyword in type_key or keyword in type_name or keyword in activity_name 
+                       for keyword in cycling_keywords):
+                    cycling_activities.append(activity)
+            
+            if not cycling_activities:
+                print("No cycling activities found")
+                return
+                
+            print(f"Found {len(cycling_activities)} cycling activities")
+            os.makedirs("data", exist_ok=True)
+            
+            for activity in cycling_activities:
+                activity_id = activity['activityId']
+                activity_name = activity.get('activityName', 'Unnamed')
+                print(f"\nDownloading activity: {activity_name} (ID: {activity_id})")
+                
+                # Check if already downloaded
+                existing_files = [f for f in os.listdir("data") if str(activity_id) in f]
+                if existing_files:
+                    print(f"  Already exists: {existing_files[0]}")
+                    continue
+                
+                self._download_workout(activity_id)
+                
+            print("\nAll cycling activities downloaded")
+            
+        except Exception as e:
+            print(f"Error downloading workouts: {e}")
+            return
+
     def _manual_activity_selection(self, activities: List[Dict]) -> Optional[Dict]:
         """Allow user to manually select an activity from the list."""
         print("\nRecent activities:")
@@ -913,6 +964,57 @@ class GarminWorkoutAnalyzer:
         
         return chart_filename
     
+    def reanalyze_all_workouts(self) -> None:
+        """Re-analyze all downloaded activities and generate reports."""
+        data_dir = Path("data")
+        if not data_dir.exists():
+            print("Data directory does not exist. Nothing to re-analyze.")
+            return
+        
+        # Get all activity files in data directory
+        activity_files = list(data_dir.glob('*.[fF][iI][tT]')) + \
+                        list(data_dir.glob('*.[tT][cC][xX]')) + \
+                        list(data_dir.glob('*.[gG][pP][xX]'))
+        
+        if not activity_files:
+            print("No activity files found in data directory")
+            return
+            
+        print(f"Found {len(activity_files)} activity files to analyze")
+        
+        for file_path in activity_files:
+            try:
+                # Extract activity ID from filename (filename format: {activity_id}_...)
+                activity_id = None
+                filename_parts = file_path.stem.split('_')
+                if filename_parts and filename_parts[0].isdigit():
+                    activity_id = int(filename_parts[0])
+                
+                print(f"\nAnalyzing: {file_path.name}")
+                print("------------------------------------------------")
+                
+                # Estimate cog size
+                estimated_cog = self.estimate_cog_from_cadence(str(file_path))
+                print(f"Estimated cog size from file: {estimated_cog}t")
+                
+                # Run analysis
+                analysis_data = self.analyze_fit_file(str(file_path), estimated_cog)
+                if not analysis_data:
+                    print(f"Failed to analyze file: {file_path.name}")
+                    continue
+                
+                # Generate report (use activity ID if available, else use filename)
+                report_id = activity_id if activity_id else file_path.stem
+                self.generate_markdown_report(analysis_data, activity_id=report_id)
+                print(f"Generated report for activity {report_id}")
+                
+            except Exception as e:
+                print(f"Error processing {file_path.name}: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        print("\nAll activities re-analyzed")
+
     def generate_markdown_report(self, analysis_data: Dict, activity_id: int = None, output_file: str = None):
         """Generate comprehensive markdown report with enhanced power analysis."""
         session = analysis_data['session']
@@ -1083,8 +1185,22 @@ import argparse
 
 def main():
     """Main function to run the workout analyzer."""
-    parser = argparse.ArgumentParser(description='Analyze Garmin cycling workouts with enhanced power estimation and charts')
-    parser.add_argument('-w', '--workout-id', type=int, help='Specific workout ID to analyze')
+    parser = argparse.ArgumentParser(
+        description='Garmin Cycling Analyzer - Download and analyze workouts with enhanced power estimation',
+        epilog=(
+            'Examples:\n'
+            '  Download & analyze latest workout: python garmin_cycling_analyzer.py\n'
+            '  Analyze specific workout: python garmin_cycling_analyzer.py -w 123456789\n'
+            '  Download all cycling workouts: python garmin_cycling_analyzer.py --download-all\n'
+            '  Re-analyze downloaded workouts: python garmin_cycling_analyzer.py --reanalyze-all\n\n'
+            'After downloading workouts, find files in data/ directory\n'
+            'Generated reports are saved in reports/ directory'
+        ),
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('-w', '--workout-id', type=int, help='Analyze specific workout by ID')
+    parser.add_argument('--download-all', action='store_true', help='Download all cycling activities (no analysis)')
+    parser.add_argument('--reanalyze-all', action='store_true', help='Re-analyze all downloaded activities')
     args = parser.parse_args()
     
     analyzer = GarminWorkoutAnalyzer()
@@ -1093,56 +1209,60 @@ def main():
     if not analyzer.connect_to_garmin():
         return
     
-    # Step 2: Download workout
-    if args.workout_id:
+    # Process command line arguments
+    if args.download_all:
+        print("Downloading all cycling workouts...")
+        analyzer.download_all_workouts()
+        print("\nAll downloads completed!")
+    elif args.reanalyze_all:
+        print("Re-analyzing all downloaded workouts...")
+        analyzer.reanalyze_all_workouts()
+    elif args.workout_id:
         activity_id = args.workout_id
+        print(f"Processing workout ID: {activity_id}")
         fit_file_path = analyzer.download_specific_workout(activity_id)
         
         if not fit_file_path:
+            print(f"Failed to download workout {activity_id}")
             return
             
-        # Run analysis for specific workout
         estimated_cog = analyzer.estimate_cog_from_cadence(fit_file_path)
         confirmed_cog = analyzer.get_user_cog_confirmation(estimated_cog)
-        print("Analyzing workout data with enhanced power calculations...")
+        print("Analyzing workout with enhanced power calculations...")
         analysis_data = analyzer.analyze_fit_file(fit_file_path, confirmed_cog)
         
-        if analysis_data is None:
+        if not analysis_data:
             print("Error: Could not analyze workout data")
             return
             
-        print("Generating enhanced report with charts...")
+        print("Generating comprehensive report...")
         report_file = analyzer.generate_markdown_report(analysis_data, activity_id=activity_id)
         
-        print(f"\nWorkout analysis complete!")
-        print(f"Report saved as: {report_file}")
-        print(f"Charts saved in report directory")
+        print(f"\nAnalysis complete for workout {activity_id}!")
+        print(f"Report saved: {report_file}")
     else:
+        print("Processing latest cycling workout")
         fit_file_path = analyzer.download_latest_workout()
         activity_id = analyzer.last_activity_id
 
         if not fit_file_path:
+            print("Failed to download latest workout")
             return
         
-        # Step 3: Estimate cog size and get user confirmation
         estimated_cog = analyzer.estimate_cog_from_cadence(fit_file_path)
         confirmed_cog = analyzer.get_user_cog_confirmation(estimated_cog)
-        
-        # Step 4: Analyze workout file with enhanced processing
-        print("Analyzing workout data with enhanced power calculations...")
+        print("Analyzing with enhanced power model...")
         analysis_data = analyzer.analyze_fit_file(fit_file_path, confirmed_cog)
         
-        if analysis_data is None:
+        if not analysis_data:
             print("Error: Could not analyze workout data")
             return
         
-        # Step 5: Generate enhanced markdown report with charts
-        print("Generating enhanced report with charts...")
+        print("Generating report with visualization...")
         report_file = analyzer.generate_markdown_report(analysis_data, activity_id=activity_id)
         
-        print(f"\nWorkout analysis complete!")
-        print(f"Report saved as: {report_file}")
-        print(f"Charts saved in report directory")
+        print(f"\nAnalysis complete for activity {activity_id}!")
+        print(f"Report saved: {report_file}")
 
 if __name__ == "__main__":
     # Create example .env file if it doesn't exist
