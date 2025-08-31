@@ -19,6 +19,7 @@ pip install garminconnect fitparse python-dotenv pandas numpy matplotlib
 import os
 import sys
 import zipfile
+import magic
 from datetime import datetime, timedelta
 from pathlib import Path
 import math
@@ -44,15 +45,28 @@ except ImportError as e:
 class GarminWorkoutAnalyzer:
     """Main class for analyzing Garmin workout data."""
     
-    def __init__(self):
+    def __init__(self, is_indoor=False):
         # Load environment variables
         load_dotenv()
+        
+        # Initialize magic file type detection
+        self.magic = magic.Magic(mime=True)
+        
+        # Create data directory if not exists
+        os.makedirs("data", exist_ok=True)
         
         # Track last activity ID for filename
         self.last_activity_id = None
         
         # Bike specifications
-        self.CHAINRING_TEETH = 38
+        self.VALID_CONFIGURATIONS = {
+            38: [14, 16, 18, 20],
+            46: [16]
+        }
+        self.is_indoor = is_indoor
+        self.selected_chainring = None
+        self.power_data_available = False
+        self.CHAINRING_TEETH = 38  # Default, will be updated
         self.BIKE_WEIGHT_LBS = 22
         self.BIKE_WEIGHT_KG = self.BIKE_WEIGHT_LBS * 0.453592
         
@@ -71,8 +85,11 @@ class GarminWorkoutAnalyzer:
             'Z5': (169, 300)
         }
         
-        # Cassette options
+        # Cassette options remain the same
         self.CASSETTE_OPTIONS = [14, 16, 18, 20]
+        
+        # Initialize power_data_available
+        self.power_data_available = False
         
         self.garmin_client = None
         
@@ -184,33 +201,80 @@ class GarminWorkoutAnalyzer:
                 
                 print(f"Downloaded {len(fit_data)} bytes")
                 
-                # Save directly to data directory
-                file_path = os.path.join("data", f"{activity_id}_{dl_format}{extension}")
+                # Save directly to data directory - use enum name for clean filename
+                format_name = dl_format.name.lower()
+                file_path = os.path.join("data", f"{activity_id}_{format_name}{extension}")
                 with open(file_path, 'wb') as f:
                     f.write(fit_data)
                 
                 if dl_format == self.garmin_client.ActivityDownloadFormat.ORIGINAL and extension == '.fit':
-                    if zipfile.is_zipfile(file_path):
-                        print(f"Downloaded file is a ZIP archive, extracting FIT file...")
+                    # Validate real file type with python-magic
+                    file_type = self.magic.from_file(file_path)
+                    
+                    if "application/zip" in file_type or zipfile.is_zipfile(file_path):
+                        print("Extracting ZIP archive...")
+                        extracted_files = []
+                        temp_dir = tempfile.mkdtemp(dir="data")
                         
-                        # Extract to same data directory
+                        # Extract initial ZIP
                         with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                            zip_ref.extractall("data")
+                            zip_ref.extractall(temp_dir)
+                            extracted_files = [os.path.join(temp_dir, name) for name in zip_ref.namelist()]
                         
-                        fit_files = list(Path("data").glob('*.fit'))
+                        # Recursive extraction
+                        final_files = []
+                        for extracted_path in extracted_files:
+                            if zipfile.is_zipfile(extracted_path):
+                                with zipfile.ZipFile(extracted_path, 'r') as nested_zip:
+                                    nested_dir = os.path.join(temp_dir, "nested")
+                                    os.makedirs(nested_dir, exist_ok=True)
+                                    nested_zip.extractall(nested_dir)
+                                    final_files.extend([os.path.join(nested_dir, name) for name in nested_zip.namelist()])
+                            else:
+                                final_files.append(extracted_path)
+                        
+                        # Find valid FIT files
+                        fit_files = []
+                        for file_path in final_files:
+                            # Check by file header
+                            try:
+                                with open(file_path, 'rb') as f:
+                                    if f.read(12).endswith(b'.FIT'):
+                                        fit_files.append(file_path)
+                            except:
+                                continue
+                        
                         if not fit_files:
-                            print("No FIT file found in ZIP archive")
+                            print("No valid FIT file found after extraction")
                             continue
                         
-                        extracted_fit = fit_files[0]
-                        print(f"Extracted FIT file: {extracted_fit}")
-                        file_path = str(extracted_fit)
+                        # Use first valid FIT file
+                        fit_file = fit_files[0]
+                        print(f"Using FIT file: {fit_file}")
                     
+                    elif is_fit_file_by_header(file_path):
+                        print("Valid FIT file detected by header")
+                        fit_file = file_path
+                    
+                    else:
+                        print(f"Unexpected file format: {file_type}")
+                        continue
+                    
+                    # Helper function for FIT header validation
+                    def is_fit_file_by_header(path):
+                        try:
+                            with open(path, 'rb') as f:
+                                header = f.read(12)
+                                return header.endswith(b'.FIT')
+                        except:
+                            return False
+                    
+                    # Final validation with fitparse
                     try:
-                        test_fit = FitFile(file_path)
-                        list(test_fit.get_messages())[:1]
-                        print(f"Downloaded valid FIT file to {file_path}")
-                        return file_path
+                        fit_obj = FitFile(fit_file)
+                        list(fit_obj.get_messages())[:1]  # Test parse
+                        print(f"Successfully validated FIT file: {fit_file}")
+                        return fit_file
                     except Exception as fit_error:
                         print(f"FIT file validation failed: {fit_error}")
                         continue
@@ -317,12 +381,39 @@ class GarminWorkoutAnalyzer:
         
         return cog_teeth
     
-    def enhanced_cog_estimation(self, df: pd.DataFrame) -> int:
-        """Enhanced cog estimation using actual gear calculations."""
+    def enhanced_chainring_cog_estimation(self, df: pd.DataFrame) -> Tuple[int, int]:
+        """Estimate chainring and cog using actual data and valid configurations."""
         if df.empty or 'cadence' not in df.columns or 'speed' not in df.columns:
-            return 16
+            return 38, 16  # Default fallback
         
-        gear_estimates = []
+        # For each valid configuration, calculate error
+        config_errors = []
+        
+        for chainring, cogs in self.VALID_CONFIGURATIONS.items():
+            for cog in cogs:
+                error = 0
+                count = 0
+                
+                for _, row in df.iterrows():
+                    if pd.notna(row['cadence']) and pd.notna(row['speed']) and row['cadence'] > 30:
+                        # Theoretical speed calculation
+                        distance_per_rev = self.TIRE_CIRCUMFERENCE_M * (chainring / cog)
+                        theoretical_speed = distance_per_rev * row['cadence'] * 60 / 1000  # km/h
+                        
+                        # Accumulate squared error
+                        error += (theoretical_speed - row['speed'] * 3.6) ** 2
+                        count += 1
+                
+                if count > 0:
+                    avg_error = error / count
+                    config_errors.append((chainring, cog, avg_error))
+        
+        # Find configuration with minimum error
+        if config_errors:
+            best_config = min(config_errors, key=lambda x: x[2])
+            return best_config[0], best_config[1]
+        
+        return 38, 16  # Default if no valid estimation
         
         for _, row in df.iterrows():
             if (pd.notna(row['cadence']) and pd.notna(row['speed']) and 
@@ -457,12 +548,71 @@ class GarminWorkoutAnalyzer:
             except ValueError:
                 print("Please enter a valid number")
     
-    def calculate_enhanced_power_estimate(self, speed_ms: float, gradient: float, 
-                                        rider_weight_kg: float = 90.7, 
-                                        temperature_c: float = 20.0) -> float:
-        """Enhanced power estimation with better physics and environmental factors."""
+    def calculate_power(self, speed_ms: float, cadence: float, gradient: float, 
+                       rider_weight_kg: float = 90.7, 
+                       temperature_c: float = 20.0) -> float:
+        """
+        Calculate power using physics-based model. For indoor workouts, this estimates
+        power based on cadence and resistance simulation.
+        """
+        if self.power_data_available and cadence > 0:
+            # Use real power data if available and valid
+            return cadence  # This is just a placeholder
+            
+        if self.is_indoor:
+            # Indoor-specific power estimation based on cadence and simulated resistance
+            if cadence <= 0:
+                return 0
+                
+            # Base resistance for stationary bike (equivalent to 2% grade)
+            base_resistance = 0.02
+            
+            # Increase resistance effect at higher cadences
+            resistance_factor = base_resistance * (1 + 0.01 * max(0, cadence - 80))
+            
+            # Calculate effective grade based on cadence
+            simulated_grade = resistance_factor * 100
+            
+            # Simulate speed based on cadence and gear ratio (using fixed indoor gear)
+            simulated_speed = cadence * (self.TIRE_CIRCUMFERENCE_M / 60) * 3.6
+            
+            # Apply the outdoor power model with simulated parameters
+            return self._physics_power_model(simulated_speed/3.6, cadence, simulated_grade, temperature_c)
+            
+        return self._physics_power_model(speed_ms, cadence, gradient, temperature_c)
+    
+    def _physics_power_model(self, speed_ms: float, cadence: float, gradient: float, 
+                           temperature_c: float) -> float:
+        """Physics-based power calculation model used for both indoor and outdoor."""
         if speed_ms <= 0:
             return 0
+        
+        # Temperature-adjusted air density
+        rho = 1.225 * (288.15 / (temperature_c + 273.15))
+        
+        # Speed-dependent CdA (accounting for position changes)
+        base_CdA = 0.324
+        CdA = base_CdA * (1 + 0.02 * max(0, speed_ms - 10))
+        
+        # Rolling resistance varies with speed
+        base_Cr = 0.0063
+        Cr = base_Cr * (1 + 0.0001 * speed_ms**2)
+        
+        efficiency = 0.97
+        total_weight = (90.7 + self.BIKE_WEIGHT_KG) * 9.81  # Fixed rider weight
+        
+        # Force components
+        F_rolling = Cr * total_weight * math.cos(math.atan(gradient / 100))
+        F_air = 0.5 * CdA * rho * speed_ms**2
+        F_gravity = total_weight * math.sin(math.atan(gradient / 100))
+        
+        # Mechanical losses
+        mechanical_loss = 5 + 0.1 * speed_ms
+        
+        F_total = F_rolling + F_air + F_gravity
+        power_watts = (F_total * speed_ms) / efficiency + mechanical_loss
+        
+        return max(power_watts, 0)
         
         speed_ms = max(speed_ms, 0.1)
         
@@ -494,18 +644,25 @@ class GarminWorkoutAnalyzer:
         return max(power_watts, 0)
     
     def calculate_smoothed_gradient(self, df: pd.DataFrame, window_size: int = 5) -> pd.Series:
-        """Calculate smoothed gradient to reduce noise."""
+        """Calculate smoothed gradient with null safety."""
         gradients = []
         
         for i in range(len(df)):
+            # Handle beginning of dataset
             if i < window_size:
                 gradients.append(0.0)
                 continue
                 
             start_idx = i - window_size
             
-            if (pd.notna(df.iloc[i]['altitude']) and pd.notna(df.iloc[start_idx]['altitude']) and
-                pd.notna(df.iloc[i]['distance']) and pd.notna(df.iloc[start_idx]['distance'])):
+            # Check all required fields exist and are numeric
+            required_fields = ['altitude', 'distance']
+            if all(field in df.columns and 
+                   pd.notna(df.iloc[i][field]) and 
+                   pd.notna(df.iloc[start_idx][field]) and
+                   isinstance(df.iloc[i][field], (int, float)) and 
+                   isinstance(df.iloc[start_idx][field], (int, float))
+                   for field in required_fields):
                 
                 alt_diff = df.iloc[i]['altitude'] - df.iloc[start_idx]['altitude']
                 dist_diff = df.iloc[i]['distance'] - df.iloc[start_idx]['distance']
@@ -577,18 +734,47 @@ class GarminWorkoutAnalyzer:
         return self._process_workout_data(df, session_data, cog_size)
     
     def _analyze_tcx_format(self, tcx_file_path: str, cog_size: int) -> Dict:
-        """Analyze TCX file format."""
+        """Analyze TCX file format with robust namespace handling."""
         import xml.etree.ElementTree as ET
+        import re
         
-        tree = ET.parse(tcx_file_path)
-        root = tree.getroot()
+        try:
+            tree = ET.parse(tcx_file_path)
+            root = tree.getroot()
+        except ET.ParseError as e:
+            print(f"Error parsing TCX file: {e}")
+            return None
+            
+        # Extract all namespaces from root element
+        namespaces = {}
+        for attr, value in root.attrib.items():
+            if attr.startswith('xmlns'):
+                # Extract prefix (or set as default)
+                prefix = re.findall(r'\{?([^:]+)}?$', attr)[0] if ':' in attr else 'default'
+                namespaces[prefix] = value
+                
+        # Create default namespace if missing
+        if 'default' not in namespaces:
+            namespaces['default'] = 'http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2'
         
-        ns = {'tcx': 'http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2'}
+        # Create consistent namespace mapping
+        ns_map = {
+            'tcd': namespaces.get('default', 'http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2'),
+            'ae': namespaces.get('ns3', 'http://www.garmin.com/xmlschemas/ActivityExtension/v2')
+        }
         
         records = []
         session_data = {}
         
-        activity = root.find('.//tcx:Activity', ns)
+        # Find activity using the default namespace prefix
+        activity = root.find('.//tcd:Activity', ns_map)
+        if activity is None:
+            # Fallback to default namespace search
+            activity = root.find('.//{http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2}Activity')
+        if activity is None:
+            # Final fallback to element name only
+            activity = root.find('.//Activity')
+            
         if activity is not None:
             total_time = 0
             total_distance = 0
@@ -596,22 +782,30 @@ class GarminWorkoutAnalyzer:
             max_hr = 0
             hr_values = []
             
-            for lap in activity.findall('tcx:Lap', ns):
-                time_elem = lap.find('tcx:TotalTimeSeconds', ns)
-                dist_elem = lap.find('tcx:DistanceMeters', ns)
-                cal_elem = lap.find('tcx:Calories', ns)
-                max_hr_elem = lap.find('tcx:MaximumHeartRateBpm/tcx:Value', ns)
-                avg_hr_elem = lap.find('tcx:AverageHeartRateBpm/tcx:Value', ns)
+            # Find laps with consistent namespace
+            laps = activity.findall('tcd:Lap', ns_map)
+            if not laps:
+                laps = activity.findall('.//Lap')
                 
-                if time_elem is not None:
+            for lap in laps:
+                # Use XPath-like syntax for deeper elements
+                time_elem = lap.find('tcd:TotalTimeSeconds', ns_map)
+                dist_elem = lap.find('tcd:DistanceMeters', ns_map)
+                cal_elem = lap.find('tcd:Calories', ns_map)
+                
+                # Handle nested elements with namespace
+                max_hr_elem = lap.find('tcd:MaximumHeartRateBpm/tcd:Value', ns_map) or lap.find('.//HeartRateBpm/Value')
+                avg_hr_elem = lap.find('tcd:AverageHeartRateBpm/tcd:Value', ns_map) or lap.find('.//AverageHeartRateBpm/Value')
+                
+                if time_elem is not None and time_elem.text:
                     total_time += float(time_elem.text)
-                if dist_elem is not None:
+                if dist_elem is not None and dist_elem.text:
                     total_distance += float(dist_elem.text)
-                if cal_elem is not None:
+                if cal_elem is not None and cal_elem.text:
                     total_calories += int(cal_elem.text)
-                if max_hr_elem is not None:
+                if max_hr_elem is not None and max_hr_elem.text:
                     max_hr = max(max_hr, int(max_hr_elem.text))
-                if avg_hr_elem is not None:
+                if avg_hr_elem is not None and avg_hr_elem.text:
                     hr_values.append(int(avg_hr_elem.text))
             
             session_data = {
@@ -628,49 +822,71 @@ class GarminWorkoutAnalyzer:
                 'avg_cadence': None,
             }
         
-        for trackpoint in root.findall('.//tcx:Trackpoint', ns):
-            record_data = {'timestamp': None, 'heart_rate': None, 'cadence': None, 
-                          'speed': None, 'distance': None, 'altitude': None, 'temperature': None}
+        # Find trackpoints using namespace or fallbacks
+        trackpoints = root.findall('.//tcd:Trackpoint', ns_map)
+        if not trackpoints:
+            trackpoints = root.findall('.//{http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2}Trackpoint')
+        if not trackpoints:
+            trackpoints = root.findall('.//Trackpoint')
+        if not trackpoints:
+            # Fallback to recursive search
+            trackpoints = [e for e in root.iter() if 'Trackpoint' in e.tag]
+        
+        for trackpoint in trackpoints:
+            record_data = {
+                'timestamp': None,
+                'heart_rate': None,
+                'cadence': None,
+                'speed': None,
+                'distance': None,
+                'altitude': None,
+                'temperature': None
+            }
             
-            time_elem = trackpoint.find('tcx:Time', ns)
-            if time_elem is not None:
+            # Handle timestamp
+            time_elem = trackpoint.find('tcd:Time', ns_map) or trackpoint.find('.//Time')
+            if time_elem is not None and time_elem.text:
                 try:
                     record_data['timestamp'] = datetime.fromisoformat(time_elem.text.replace('Z', '+00:00'))
                 except:
                     pass
             
-            hr_elem = trackpoint.find('tcx:HeartRateBpm/tcx:Value', ns)
-            if hr_elem is not None:
+            # Handle heart rate with namespace fallbacks
+            hr_elem = trackpoint.find('tcd:HeartRateBpm/tcd:Value', ns_map) or trackpoint.find('.//HeartRateBpm/Value')
+            if hr_elem is not None and hr_elem.text:
                 try:
                     record_data['heart_rate'] = int(hr_elem.text)
                 except ValueError:
                     pass
             
-            alt_elem = trackpoint.find('tcx:AltitudeMeters', ns)
-            if alt_elem is not None:
+            # Handle altitude
+            alt_elem = trackpoint.find('tcd:AltitudeMeters', ns_map) or trackpoint.find('.//AltitudeMeters')
+            if alt_elem is not None and alt_elem.text:
                 try:
                     record_data['altitude'] = float(alt_elem.text)
                 except ValueError:
                     pass
             
-            dist_elem = trackpoint.find('tcx:DistanceMeters', ns)
-            if dist_elem is not None:
+            # Handle distance
+            dist_elem = trackpoint.find('tcd:DistanceMeters', ns_map) or trackpoint.find('.//DistanceMeters')
+            if dist_elem is not None and dist_elem.text:
                 try:
                     record_data['distance'] = float(dist_elem.text)
                 except ValueError:
                     pass
             
-            extensions = trackpoint.find('tcx:Extensions', ns)
+            # Handle extensions (cadence and speed)
+            extensions = trackpoint.find('tcd:Extensions', ns_map) or trackpoint.find('.//Extensions')
             if extensions is not None:
-                cadence_elem = extensions.find('.//*[local-name()="Cadence"]')
-                if cadence_elem is not None:
+                cadence_elem = extensions.find('ae:Cadence', ns_map) or extensions.find('.//Cadence')
+                speed_elem = extensions.find('ae:Speed', ns_map) or extensions.find('.//Speed')
+                
+                if cadence_elem is not None and cadence_elem.text:
                     try:
                         record_data['cadence'] = int(cadence_elem.text)
                     except ValueError:
                         pass
-                
-                speed_elem = extensions.find('.//*[local-name()="Speed"]')
-                if speed_elem is not None:
+                if speed_elem is not None and speed_elem.text:
                     try:
                         record_data['speed'] = float(speed_elem.text)
                     except ValueError:
@@ -684,6 +900,24 @@ class GarminWorkoutAnalyzer:
         
         return self._process_workout_data(df, session_data, cog_size)
     
+    def _find_element(self, element, tags, namespaces, is_path=False):
+        """Helper to find element with multiple possible tags/namespaces."""
+        for ns in namespaces:
+            if is_path:
+                current = element
+                for tag in tags:
+                    current = current.find(f'ns:{tag}', namespaces=ns) if ns else current.find(tag)
+                    if current is None:
+                        break
+                if current is not None:
+                    return current
+            else:
+                for tag in tags:
+                    elem = element.find(f'ns:{tag}', namespaces=ns) if ns else element.find(tag)
+                    if elem is not None:
+                        return elem
+        return None
+
     def _analyze_gpx_format(self, gpx_file_path: str, cog_size: int) -> Dict:
         """Analyze GPX file format (limited data available)."""
         import xml.etree.ElementTree as ET
@@ -691,11 +925,23 @@ class GarminWorkoutAnalyzer:
         tree = ET.parse(gpx_file_path)
         root = tree.getroot()
         
-        ns = {'gpx': 'http://www.topografix.com/GPX/1/1'}
+        namespaces = [
+            {'ns': 'http://www.topografix.com/GPX/1/1'},
+            {'ns': ''}
+        ]
         
         records = []
         
-        for trkpt in root.findall('.//gpx:trkpt', ns):
+        # Find trackpoints
+        trackpoints = []
+        for ns in namespaces:
+            trackpoints = root.findall('.//ns:trkpt', namespaces=ns)
+            if trackpoints:
+                break
+        if not trackpoints:
+            trackpoints = root.findall('.//trkpt')
+        
+        for trkpt in trackpoints:
             record_data = {
                 'timestamp': None,
                 'heart_rate': None,
@@ -751,28 +997,75 @@ class GarminWorkoutAnalyzer:
         return self._process_workout_data(df, session_data, cog_size)
     
     def _process_workout_data(self, df: pd.DataFrame, session_data: Dict, cog_size: int) -> Dict:
-        """Enhanced workout data processing with improved calculations."""
+        """Enhanced workout data processing with robust null checks."""
+        # Initialize power_data_available flag
+        self.power_data_available = False
+        
+        # Check if df has data
+        if df is None or df.empty:
+            return None
+        
+        # Validate session_data exists
+        if not session_data:
+            session_data = {}
+        
+        # Check for real power data availability
+        if 'power' in df.columns and not df['power'].isna().all():
+            self.power_data_available = True
+        
         if len(df) > 0:
             if 'speed' in df.columns:
                 df['speed_kmh'] = df['speed'] * 3.6
             else:
                 df['speed_kmh'] = 0
+            
+            # Indoor-specific processing
+            if self.is_indoor:
+                # For indoor workouts, gradient calculation is simulated
+                df['gradient'] = 0
                 
-            # Enhanced gradient calculation
-            df['gradient'] = self.calculate_smoothed_gradient(df)
+                # Fixed gear configuration for indoor bike
+                self.selected_chainring = 38
+                cog_size = 16
+                self.CHAINRING_TEETH = self.selected_chainring
+                
+                # Use physics model for indoor power estimation
+                if not self.power_data_available:
+                    if 'cadence' in df.columns and not df['cadence'].isna().all():
+                        # For indoor, speed data might not be reliable - set to 0
+                        df['power_estimate'] = df.apply(lambda row: 
+                            self.calculate_power(0, row.get('cadence', 0), 0, row.get('temperature', 20)), 
+                            axis=1
+                        )
+                    else:
+                        df['power_estimate'] = 0
+                else:
+                    # Use real power data when available
+                    df['power_estimate'] = df['power']
+            else:
+                # Outdoor-specific processing
+                df['gradient'] = self.calculate_smoothed_gradient(df)
+                
+                # Enhanced cog and chainring estimation
+                estimated_chainring, estimated_cog = self.enhanced_chainring_cog_estimation(df)
+                self.selected_chainring = estimated_chainring
+                cog_size = estimated_cog
+                self.CHAINRING_TEETH = self.selected_chainring
+                
+                # Power estimation for outdoor workouts
+                df['power_estimate'] = df.apply(lambda row: 
+                    self.calculate_power(
+                        row.get('speed', 0), 
+                        row.get('cadence', 0),
+                        row.get('gradient', 0),
+                        row.get('temperature', 20)
+                    ), axis=1)
             
-            # Enhanced power calculation
-            df['power_estimate'] = df.apply(lambda row: 
-                self.calculate_enhanced_power_estimate(
-                    row.get('speed', 0), 
-                    row.get('gradient', 0),
-                    temperature_c=row.get('temperature', 20)
-                ), axis=1)
-            
-            # Re-estimate cog size based on actual data
-            estimated_cog = self.enhanced_cog_estimation(df)
-            if estimated_cog != cog_size:
-                print(f"Data-based cog estimate: {estimated_cog}t (using {cog_size}t)")
+            # Re-estimate cog size based on actual data for outdoor
+            if not self.is_indoor:
+                estimated_cog = self.enhanced_cog_estimation(df)
+                if estimated_cog != cog_size:
+                    print(f"Data-based cog estimate: {estimated_cog}t (using {cog_size}t)")
         
         return {
             'session': session_data,
@@ -1020,9 +1313,17 @@ class GarminWorkoutAnalyzer:
         session = analysis_data['session']
         df = analysis_data['records']
         cog_size = analysis_data['cog_size']
+        chainring = self.selected_chainring or 38
         
         # Create report directory structure
         report_dir = Path("reports")
+        
+        # Add indoor bike indicator to report
+        indoor_indicator = " (Indoor Bike)" if self.is_indoor else ""
+        if self.is_indoor and not self.power_data_available:
+            power_source = "Estimated Power (Physics Model)"
+        else:
+            power_source = "Real Power Data" if self.power_data_available else "Estimated Power"
         if activity_id and session.get('start_time'):
             date_str = session['start_time'].strftime('%Y-%m-%d')
             report_dir = report_dir / f"{date_str}_{activity_id}"
@@ -1045,7 +1346,8 @@ class GarminWorkoutAnalyzer:
         report = []
         report.append("# Cycling Workout Analysis Report")
         report.append(f"\n*Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
-        report.append(f"\n**Bike Configuration:** {self.CHAINRING_TEETH}t chainring, {cog_size}t cog, {self.BIKE_WEIGHT_LBS}lbs bike weight")
+        report.append(f"\n**Bike Configuration{indoor_indicator}:** {chainring}t chainring, {cog_size}t cog, {self.BIKE_WEIGHT_LBS}lbs bike weight")
+        report.append(f"**Power Source:** {power_source}")
         report.append(f"**Wheel Specs:** 700c wheel + {self.TIRE_WIDTH_MM}mm tires (circumference: {self.TIRE_CIRCUMFERENCE_M:.2f}m)\n")
         
         # Basic metrics table
@@ -1168,7 +1470,11 @@ class GarminWorkoutAnalyzer:
         
         # Technical Notes
         report.append("\n## Technical Notes")
-        report.append("- Power estimates use enhanced physics model with temperature-adjusted air density")
+        if self.is_indoor and not self.power_data_available:
+            report.append("- **INDOOR POWER ESTIMATION:** Uses physics-based model simulating 2% base grade ")
+            report.append("  with increasing resistance at higher cadences (>80 RPM)")
+        else:
+            report.append("- Power estimates use enhanced physics model with temperature-adjusted air density")
         report.append("- Gradient calculations are smoothed over 5-point windows to reduce GPS noise")
         report.append("- Gear ratios calculated using actual wheel circumference and drive train specifications")
         report.append("- Power zones based on typical cycling power distribution ranges")
@@ -1199,11 +1505,12 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('-w', '--workout-id', type=int, help='Analyze specific workout by ID')
+    parser.add_argument('--indoor', action='store_true', help='Process as indoor cycling workout')
     parser.add_argument('--download-all', action='store_true', help='Download all cycling activities (no analysis)')
     parser.add_argument('--reanalyze-all', action='store_true', help='Re-analyze all downloaded activities')
     args = parser.parse_args()
     
-    analyzer = GarminWorkoutAnalyzer()
+    analyzer = GarminWorkoutAnalyzer(is_indoor=args.indoor)
     
     # Step 1: Connect to Garmin
     if not analyzer.connect_to_garmin():
