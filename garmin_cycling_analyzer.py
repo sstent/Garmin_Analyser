@@ -45,7 +45,7 @@ except ImportError as e:
 class GarminWorkoutAnalyzer:
     """Main class for analyzing Garmin workout data."""
     
-    def __init__(self, is_indoor=False):
+    def __init__(self):
         # Load environment variables
         load_dotenv()
         
@@ -63,12 +63,15 @@ class GarminWorkoutAnalyzer:
             38: [14, 16, 18, 20],
             46: [16]
         }
-        self.is_indoor = is_indoor
+        self.is_indoor = False
         self.selected_chainring = None
         self.power_data_available = False
         self.CHAINRING_TEETH = 38  # Default, will be updated
         self.BIKE_WEIGHT_LBS = 22
         self.BIKE_WEIGHT_KG = self.BIKE_WEIGHT_LBS * 0.453592
+        
+        # Indoor activity keywords
+        self.INDOOR_KEYWORDS = ['indoor_cycling', 'indoor cycling', 'indoor bike', 'trainer', 'zwift', 'virtual']
         
         # HR Zones (based on LTHR 170 bpm)
         self.HR_ZONES = {
@@ -103,6 +106,20 @@ class GarminWorkoutAnalyzer:
         self.TIRE_CIRCUMFERENCE_MM = math.pi * (self.WHEEL_DIAMETER_MM + 2 * self.TIRE_WIDTH_MM)
         self.TIRE_CIRCUMFERENCE_M = self.TIRE_CIRCUMFERENCE_MM / 1000  # ~2.23m
         
+    def _detect_indoor_activity(self, activity):
+        """Detect if activity is indoor based on type and name."""
+        activity_type = activity.get('activityType', {}).get('typeKey', '').lower()
+        activity_name = activity.get('activityName', '').lower()
+        
+        self.is_indoor = any(
+            keyword in activity_type or keyword in activity_name
+            for keyword in self.INDOOR_KEYWORDS
+        )
+        
+        if self.is_indoor:
+            print(f"Detected indoor activity: {activity_name} (Type: {activity_type})")
+        else:
+            print(f"Detected outdoor activity: {activity_name} (Type: {activity_type})")
         
     def connect_to_garmin(self) -> bool:
         """Connect to Garmin Connect using credentials from .env file."""
@@ -127,6 +144,11 @@ class GarminWorkoutAnalyzer:
         try:
             print(f"Downloading workout ID: {activity_id}")
             self.last_activity_id = activity_id
+            
+            # Get activity details to detect indoor type
+            activity = self.garmin_client.get_activity(activity_id)
+            self._detect_indoor_activity(activity)
+            
             return self._download_workout(activity_id)
         except Exception as e:
             print(f"Error downloading workout {activity_id}: {e}")
@@ -157,7 +179,7 @@ class GarminWorkoutAnalyzer:
                 type_name = str(activity_type.get('typeId', '')).lower()
                 activity_name = activity.get('activityName', '').lower()
                 
-                if any(keyword in type_key or keyword in type_name or keyword in activity_name 
+                if any(keyword in type_key or keyword in type_name or keyword in activity_name
                        for keyword in cycling_keywords):
                     cycling_activity = activity
                     print(f"Selected cycling activity: {activity['activityName']} (Type: {type_key})")
@@ -184,6 +206,10 @@ class GarminWorkoutAnalyzer:
             activity_id = cycling_activity['activityId']
             self.last_activity_id = activity_id
             print(f"Found cycling activity: {cycling_activity['activityName']} ({activity_id})")
+            
+            # Detect indoor activity type
+            self._detect_indoor_activity(cycling_activity)
+            
             return self._download_workout(activity_id)
             
         except Exception as e:
@@ -321,7 +347,7 @@ class GarminWorkoutAnalyzer:
                 type_name = str(activity_type.get('typeId', '')).lower()
                 activity_name = activity.get('activityName', '').lower()
                 
-                if any(keyword in type_key or keyword in type_name or keyword in activity_name 
+                if any(keyword in type_key or keyword in type_name or keyword in activity_name
                        for keyword in cycling_keywords):
                     cycling_activities.append(activity)
             
@@ -342,6 +368,9 @@ class GarminWorkoutAnalyzer:
                 if existing_files:
                     print(f"  Already exists: {existing_files[0]}")
                     continue
+                
+                # Detect indoor activity type for each activity
+                self._detect_indoor_activity(activity)
                 
                 self._download_workout(activity_id)
                 
@@ -755,10 +784,10 @@ class GarminWorkoutAnalyzer:
         if 'timestamp' in df.columns:
             df = df.dropna(subset=['timestamp'])
         
-        # Fill other missing values with defaults
+        # Fill other missing values with defaults using proper assignment
         for col in ['heart_rate', 'cadence', 'speed', 'distance', 'altitude', 'temperature']:
             if col in df.columns:
-                df[col].fillna(0, inplace=True)
+                df[col] = df[col].fillna(0)
         
         return self._process_workout_data(df, session_data, cog_size)
     
@@ -1104,9 +1133,9 @@ class GarminWorkoutAnalyzer:
                 # For indoor workouts, gradient calculation is simulated
                 df['gradient'] = 0
                 
-                # Fixed gear configuration for indoor bike
+                # Fixed gear configuration for indoor bike (38t chainring + 14t cog)
                 self.selected_chainring = 38
-                cog_size = 16
+                cog_size = 14  # Set explicitly for indoor
                 self.CHAINRING_TEETH = self.selected_chainring
                 
                 # Use physics model for indoor power estimation
@@ -1658,6 +1687,7 @@ class GarminWorkoutAnalyzer:
 
 import argparse
 
+
 def main():
     """Main function to run the workout analyzer."""
     parser = argparse.ArgumentParser(
@@ -1674,12 +1704,12 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('-w', '--workout-id', type=int, help='Analyze specific workout by ID')
-    parser.add_argument('--indoor', action='store_true', help='Process as indoor cycling workout')
     parser.add_argument('--download-all', action='store_true', help='Download all cycling activities (no analysis)')
     parser.add_argument('--reanalyze-all', action='store_true', help='Re-analyze all downloaded activities')
+    # Removed deprecated --indoor flag
     args = parser.parse_args()
     
-    analyzer = GarminWorkoutAnalyzer(is_indoor=args.indoor)
+    analyzer = GarminWorkoutAnalyzer()
     
     # Step 1: Connect to Garmin
     if not analyzer.connect_to_garmin():
@@ -1702,8 +1732,9 @@ def main():
             print(f"Failed to download workout {activity_id}")
             return
             
+        # Auto-detect indoor/outdoor and get cog size
         estimated_cog = analyzer.estimate_cog_from_cadence(fit_file_path)
-        confirmed_cog = analyzer.get_user_cog_confirmation(estimated_cog)
+        confirmed_cog = 14 if analyzer.is_indoor else analyzer.get_user_cog_confirmation(estimated_cog)
         print("Analyzing workout with enhanced power calculations...")
         analysis_data = analyzer.analyze_fit_file(fit_file_path, confirmed_cog)
         
@@ -1725,8 +1756,9 @@ def main():
             print("Failed to download latest workout")
             return
         
+        # Auto-detect indoor/outdoor and get cog size
         estimated_cog = analyzer.estimate_cog_from_cadence(fit_file_path)
-        confirmed_cog = analyzer.get_user_cog_confirmation(estimated_cog)
+        confirmed_cog = 14 if analyzer.is_indoor else analyzer.get_user_cog_confirmation(estimated_cog)
         print("Analyzing with enhanced power model...")
         analysis_data = analyzer.analyze_fit_file(fit_file_path, confirmed_cog)
         
