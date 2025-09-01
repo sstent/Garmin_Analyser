@@ -744,6 +744,7 @@ class GarminWorkoutAnalyzer:
                 'distance': self.get_value_safely(record, 'distance'),
                 'altitude': self.get_value_safely(record, 'enhanced_altitude'),
                 'temperature': self.get_value_safely(record, 'temperature'),
+                'power': self.get_value_safely(record, 'power'),  # ADD POWER FIELD
             }
             records.append(record_data)
         
@@ -1079,13 +1080,17 @@ class GarminWorkoutAnalyzer:
         if 'heart_rate' in df.columns:
             df['heart_rate'] = df['heart_rate'].clip(lower=0, upper=250)
         
-        # Check for real power data availability with validation
+        # Enhanced power data validation
         if 'power' in df.columns:
-            valid_power = df['power'].dropna()
-            self.power_data_available = len(valid_power) > 10 and valid_power.mean() > 0
-            if self.power_data_available:
-                df['power'] = pd.to_numeric(df['power'], errors='coerce').fillna(0)
-                df['power'] = df['power'].clip(lower=0, upper=2000)
+            # Convert to numeric and handle missing values
+            df['power'] = pd.to_numeric(df['power'], errors='coerce').fillna(0)
+            
+            # Check if we have sufficient valid power data
+            valid_power = df[df['power'] > 0]
+            self.power_data_available = len(valid_power) > 10 and valid_power['power'].mean() > 0
+            
+            # Clip values regardless of availability
+            df['power'] = df['power'].clip(lower=0, upper=2000)
         
         if len(df) > 0:
             if 'speed' in df.columns:
@@ -1237,7 +1242,8 @@ class GarminWorkoutAnalyzer:
                 ('cadence', 'avg_cadence'),
                 ('heart_rate', 'avg_hr'),
                 ('gradient', 'avg_gradient'),
-                ('power_estimate', 'avg_power_estimate')
+                ('power_estimate', 'avg_power_estimate'),
+                ('power', 'avg_real_power')
             ]:
                 if col in minute_df.columns and not minute_df[col].isna().all():
                     minute_stats[stat_key] = minute_df[col].mean()
@@ -1252,6 +1258,12 @@ class GarminWorkoutAnalyzer:
                 alt_end = minute_df['altitude'].iloc[-1]
                 minute_stats['elevation_change'] = alt_end - alt_start
             
+            # Add real power average if available
+            if 'power' in minute_df.columns and not minute_df['power'].isna().all():
+                minute_stats['avg_real_power'] = minute_df['power'].mean()
+            else:
+                minute_stats['avg_real_power'] = 0
+                
             minute_data.append(minute_stats)
         
         return minute_data
