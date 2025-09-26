@@ -1,0 +1,66 @@
+# Custom zones configuration example
+# This file can be used to override the default zones in config.yaml
+
+# Functional Threshold Power (W)
+ftp: 275
+
+# Maximum heart rate (bpm)
+max_heart_rate: 190
+
+# Power zones as percentage of FTP
+power_zones:
+  - name: Recovery
+    min: 0
+    max: 50
+    percentage: true
+  - name: Endurance
+    min: 51
+    max: 70
+    percentage: true
+  - name: Tempo
+    min: 71
+    max: 85
+    percentage: true
+  - name: Sweet Spot
+    min: 84
+    max: 97
+    percentage: true
+  - name: Threshold
+    min: 96
+    max: 105
+    percentage: true
+  - name: VO2 Max
+    min: 106
+    max: 120
+    percentage: true
+  - name: Anaerobic
+    min: 121
+    max: 150
+    percentage: true
+
+# Heart rate zones as percentage of max HR
+heart_rate_zones:
+  - name: Zone 1 - Recovery
+    min: 0
+    max: 60
+    percentage: true
+  - name: Zone 2 - Endurance
+    min: 60
+    max: 70
+    percentage: true
+  - name: Zone 3 - Tempo
+    min: 70
+    max: 80
+    percentage: true
+  - name: Zone 4 - Threshold
+    min: 80
+    max: 90
+    percentage: true
+  - name: Zone 5 - VO2 Max
+    min: 90
+    max: 95
+    percentage: true
+  - name: Zone 6 - Neuromuscular
+    min: 95
+    max: 100
+    percentage: true

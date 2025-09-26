@@ -1,0 +1,13 @@
+fitparse==1.2.0
+garminconnect==0.2.28
+Jinja2==3.1.6
+Markdown==3.8.2
+matplotlib==3.10.6
+numpy==2.3.2
+pandas==2.3.2
+plotly==6.3.0
+python-dotenv==1.1.1
+python_magic==0.4.27
+seaborn==0.13.2
+setuptools==75.8.0
+weasyprint==66.0

@@ -1,0 +1,20 @@
+{
+  "power": {
+    "zone1": {"min": 0, "max": 55, "label": "Active Recovery"},
+    "zone2": {"min": 56, "max": 75, "label": "Endurance"},
+    "zone3": {"min": 76, "max": 90, "label": "Tempo"},
+    "zone4": {"min": 91, "max": 105, "label": "Lactate Threshold"},
+    "zone5": {"min": 106, "max": 120, "label": "VO2 Max"},
+    "zone6": {"min": 121, "max": 150, "label": "Anaerobic Capacity"},
+    "zone7": {"min": 151, "max": 999, "label": "Neuromuscular Power"}
+  },
+  "heart_rate": {
+    "zone1": {"min": 0, "max": 60, "label": "Active Recovery"},
+    "zone2": {"min": 61, "max": 70, "label": "Endurance"},
+    "zone3": {"min": 71, "max": 80, "label": "Tempo"},
+    "zone4": {"min": 81, "max": 90, "label": "Lactate Threshold"},
+    "zone5": {"min": 91, "max": 100, "label": "VO2 Max"},
+    "zone6": {"min": 101, "max": 110, "label": "Anaerobic Capacity"},
+    "zone7": {"min": 111, "max": 999, "label": "Neuromuscular Power"}
+  }
+}

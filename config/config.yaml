@@ -1,0 +1,79 @@
+# Garmin Analyser Configuration
+
+# Garmin Connect credentials (optional - can be provided via environment variables)
+garmin_username: your_garmin_username
+garmin_password: your_garmin_password
+
+# Output settings
+output_dir: output
+log_level: INFO
+
+# Training zones configuration
+zones:
+  # Functional Threshold Power (W)
+  ftp: 250
+  
+  # Maximum heart rate (bpm)
+  max_heart_rate: 185
+  
+  # Power zones as percentage of FTP
+  power_zones:
+    - name: Active Recovery
+      min: 0
+      max: 55
+      percentage: true
+    - name: Endurance
+      min: 56
+      max: 75
+      percentage: true
+    - name: Tempo
+      min: 76
+      max: 90
+      percentage: true
+    - name: Threshold
+      min: 91
+      max: 105
+      percentage: true
+    - name: VO2 Max
+      min: 106
+      max: 120
+      percentage: true
+    - name: Anaerobic
+      min: 121
+      max: 150
+      percentage: true
+  
+  # Heart rate zones as percentage of max HR
+  heart_rate_zones:
+    - name: Zone 1 - Recovery
+      min: 0
+      max: 60
+      percentage: true
+    - name: Zone 2 - Endurance
+      min: 60
+      max: 70
+      percentage: true
+    - name: Zone 3 - Tempo
+      min: 70
+      max: 80
+      percentage: true
+    - name: Zone 4 - Threshold
+      min: 80
+      max: 90
+      percentage: true
+    - name: Zone 5 - VO2 Max
+      min: 90
+      max: 100
+      percentage: true
+
+# Chart settings
+charts:
+  theme: seaborn
+  figsize: [12, 8]
+  dpi: 300
+
+# Report settings
+reports:
+  include_charts: true
+  include_raw_data: false
+  timezone: UTC
