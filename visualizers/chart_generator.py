@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-from ..models.workout import WorkoutData
+from models.workout import WorkoutData
 
 logger = logging.getLogger(__name__)
 

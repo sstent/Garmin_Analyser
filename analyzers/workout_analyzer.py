@@ -6,8 +6,8 @@ import pandas as pd
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import timedelta
 
-from ..models.workout import WorkoutData, PowerData, HeartRateData, SpeedData, ElevationData
-from ..models.zones import ZoneCalculator
+from models.workout import WorkoutData, PowerData, HeartRateData, SpeedData, ElevationData
+from models.zones import ZoneCalculator
 
 logger = logging.getLogger(__name__)
 

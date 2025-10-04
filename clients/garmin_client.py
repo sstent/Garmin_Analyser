@@ -12,7 +12,7 @@ try:
 except ImportError:
     raise ImportError("garminconnect package required. Install with: pip install garminconnect")
 
-from ..config.settings import GARMIN_EMAIL, GARMIN_PASSWORD, DATA_DIR
+from config.settings import GARMIN_EMAIL, GARMIN_PASSWORD, DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +176,7 @@ class GarminClient:
             DATA_DIR.mkdir(exist_ok=True)
             
             # Download original file
-            file_data = self.client.download_original_activity(activity_id)
+            file_data = self.client.download_activity(activity_id, dl_fmt='ZIP')
             
             # Save to temporary file first
             with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_file:

@@ -241,23 +241,37 @@ class GarminAnalyser:
         logging.info(f"Downloading workouts from Garmin Connect (last {days} days)")
         
         client = GarminClient(
-            username=settings.GARMIN_EMAIL,
+            email=settings.GARMIN_EMAIL,
             password=settings.GARMIN_PASSWORD
         )
         
         # Download workouts
-        workouts = client.get_workouts(days=days)
+        workouts = client.get_all_cycling_workouts()
         
         # Analyze each workout
         results = []
-        for workout in workouts:
+        for workout_summary in workouts:
             try:
-                analysis = self.workout_analyzer.analyze_workout(workout)
-                results.append({
-                    'workout': workout,
-                    'analysis': analysis,
-                    'file_path': None
-                })
+                activity_id = workout_summary.get('activityId')
+                if not activity_id:
+                    logging.warning("Skipping workout with no activity ID.")
+                    continue
+
+                logging.info(f"Downloading workout file for activity ID: {activity_id}")
+                workout_file_path = client.download_activity_original(str(activity_id))
+
+                if workout_file_path and workout_file_path.exists():
+                    workout = self.file_parser.parse_file(workout_file_path)
+                    if workout:
+                        analysis = self.workout_analyzer.analyze_workout(workout)
+                        results.append({
+                            'workout': workout,
+                            'analysis': analysis,
+                            'file_path': workout_file_path
+                        })
+                else:
+                    logging.error(f"Failed to download workout file for activity ID: {activity_id}")
+
             except Exception as e:
                 logging.error(f"Error analyzing workout: {e}")
         
@@ -269,10 +283,8 @@ class GarminAnalyser:
         Returns:
             List of downloaded workouts
         """
-        logging.info("Downloading all cycling activities from Garmin Connect")
-        
         client = GarminClient(
-            username=settings.GARMIN_EMAIL,
+            email=settings.GARMIN_EMAIL,
             password=settings.GARMIN_PASSWORD
         )
         
@@ -346,7 +358,7 @@ class GarminAnalyser:
         logging.info(f"Analyzing workout ID: {workout_id}")
         
         client = GarminClient(
-            username=settings.GARMIN_EMAIL,
+            email=settings.GARMIN_EMAIL,
             password=settings.GARMIN_PASSWORD
         )
         

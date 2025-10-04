@@ -11,8 +11,8 @@ try:
 except ImportError:
     raise ImportError("fitparse package required. Install with: pip install fitparse")
 
-from ..models.workout import WorkoutData, WorkoutMetadata, PowerData, HeartRateData, SpeedData, ElevationData, GearData
-from ..config.settings import SUPPORTED_FORMATS
+from models.workout import WorkoutData, WorkoutMetadata, PowerData, HeartRateData, SpeedData, ElevationData, GearData
+from config.settings import SUPPORTED_FORMATS
 
 logger = logging.getLogger(__name__)
 

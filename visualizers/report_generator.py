@@ -10,7 +10,7 @@ from markdown import markdown
 from weasyprint import HTML, CSS
 import json
 
-from ..models.workout import WorkoutData
+from models.workout import WorkoutData
 
 logger = logging.getLogger(__name__)
 

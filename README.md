@@ -55,9 +55,11 @@ python main.py --garmin-connect --report --charts --summary
 ### Command Line Options
 
 ```
-usage: main.py [-h] [--config CONFIG] [--verbose] (--file FILE | --directory DIRECTORY | --garmin-connect)
-               [--ftp FTP] [--max-hr MAX_HR] [--zones ZONES] [--output-dir OUTPUT_DIR]
-               [--format {html,pdf,markdown}] [--charts] [--report] [--summary]
+usage: main.py [-h] [--config CONFIG] [--verbose]
+               (--file FILE | --directory DIRECTORY | --garmin-connect | --workout-id WORKOUT_ID | --download-all | --reanalyze-all)
+               [--ftp FTP] [--max-hr MAX_HR] [--zones ZONES] [--cog COG]
+               [--output-dir OUTPUT_DIR] [--format {html,pdf,markdown}]
+               [--charts] [--report] [--summary]
 
 Analyze Garmin workout data from files or Garmin Connect
 
@@ -66,13 +68,24 @@ options:
   --config CONFIG, -c CONFIG
                         Configuration file path
   --verbose, -v         Enable verbose logging
+
+Input options:
   --file FILE, -f FILE  Path to workout file (FIT, TCX, or GPX)
   --directory DIRECTORY, -d DIRECTORY
                         Directory containing workout files
   --garmin-connect      Download from Garmin Connect
+  --workout-id WORKOUT_ID
+                        Analyze specific workout by ID from Garmin Connect
+  --download-all        Download all cycling activities from Garmin Connect (no analysis)
+  --reanalyze-all       Re-analyze all downloaded activities and generate reports
+
+Analysis options:
   --ftp FTP             Functional Threshold Power (W)
   --max-hr MAX_HR       Maximum heart rate (bpm)
   --zones ZONES         Path to zones configuration file
+  --cog COG             Cog size (teeth) for power calculations. Auto-detected if not provided
+
+Output options:
   --output-dir OUTPUT_DIR
                         Output directory for reports and charts
   --format {html,pdf,markdown}
@@ -80,6 +93,23 @@ options:
   --charts              Generate charts
   --report              Generate comprehensive report
   --summary             Generate summary report for multiple workouts
+
+Examples:
+  Analyze latest workout from Garmin Connect: python main.py --garmin-connect
+  Analyze specific workout by ID: python main.py --workout-id 123456789
+  Download all cycling workouts: python main.py --download-all
+  Re-analyze all downloaded workouts: python main.py --reanalyze-all
+  Analyze local FIT file: python main.py --file path/to/workout.fit
+  Analyze directory of workouts: python main.py --directory data/
+
+Configuration:
+  Set Garmin credentials in .env file: GARMIN_EMAIL and GARMIN_PASSWORD
+  Configure zones in config/config.yaml or use --zones flag
+  Override FTP with --ftp flag, max HR with --max-hr flag
+
+Output:
+  Reports saved to output/ directory by default
+  Charts saved to output/charts/ when --charts is used
 ```
 
 ## Configuration
