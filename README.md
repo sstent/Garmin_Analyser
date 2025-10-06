@@ -142,8 +142,6 @@ GARMIN_PASSWORD=your-app-password
 Note on app passwords:
 - If your Garmin account uses two-factor authentication or app-specific passwords, create an app password in your Garmin account settings and use it for GARMIN_PASSWORD.
 
-TUI with dotenv:
-- When using the TUI with dotenv, prefer GARMIN_EMAIL and GARMIN_PASSWORD in your .env file. GARMIN_USERNAME continues to work via fallback with a one-time deprecation warning, but it is deprecated; switch to GARMIN_EMAIL.
 
 Parity and unaffected behavior:
 - Authentication and download parity is maintained. Original ZIP downloads and FIT extraction workflows are unchanged in [clients/garmin_client.py](clients/garmin_client.py).
