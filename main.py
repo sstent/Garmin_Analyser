@@ -33,136 +33,157 @@ def setup_logging(verbose: bool = False):
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command line arguments.
-    
-    Returns:
-        Parsed arguments
-    """
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description='Analyze Garmin workout data from files or Garmin Connect',
+        formatter_class=argparse.RawTextHelpFormatter,
         epilog=(
             'Examples:\n'
-            '  Analyze latest workout from Garmin Connect: python main.py --garmin-connect\n'
-            '  Analyze specific workout by ID: python main.py --workout-id 123456789\n'
-            '  Download all cycling workouts: python main.py --download-all\n'
-            '  Re-analyze all downloaded workouts: python main.py --reanalyze-all\n'
-            '  Analyze local FIT file: python main.py --file path/to/workout.fit\n'
-            '  Analyze directory of workouts: python main.py --directory data/\n\n'
-            'Configuration:\n'
-            '  Set Garmin credentials in .env file: GARMIN_EMAIL and GARMIN_PASSWORD\n'
-            '  Configure zones in config/config.yaml or use --zones flag\n'
-            '  Override FTP with --ftp flag, max HR with --max-hr flag\n\n'
-            'Output:\n'
-            '  Reports saved to output/ directory by default\n'
-            '  Charts saved to output/charts/ when --charts is used'
-        ),
-        formatter_class=argparse.RawTextHelpFormatter
+            '  %(prog)s analyze --file path/to/workout.fit\n'
+            '  %(prog)s batch --directory data/ --output-dir reports/\n'
+            '  %(prog)s download --all\n'
+            '  %(prog)s reanalyze --input-dir data/\n'
+            '  %(prog)s config --show'
+        )
     )
-    
-    parser.add_argument(
-        '--config', '-c',
-        type=str,
-        default='config/config.yaml',
-        help='Configuration file path'
-    )
-    
+
     parser.add_argument(
         '--verbose', '-v',
         action='store_true',
         help='Enable verbose logging'
     )
-    
-    # Input options
-    input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument(
+
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+
+    # Analyze command
+    analyze_parser = subparsers.add_parser('analyze', help='Analyze a single workout or download from Garmin Connect')
+    analyze_parser.add_argument(
         '--file', '-f',
         type=str,
         help='Path to workout file (FIT, TCX, or GPX)'
     )
-    input_group.add_argument(
-        '--directory', '-d',
-        type=str,
-        help='Directory containing workout files'
-    )
-    input_group.add_argument(
+    analyze_parser.add_argument(
         '--garmin-connect',
         action='store_true',
-        help='Download from Garmin Connect'
+        help='Download and analyze latest workout from Garmin Connect'
     )
-    input_group.add_argument(
+    analyze_parser.add_argument(
         '--workout-id',
         type=int,
         help='Analyze specific workout by ID from Garmin Connect'
     )
-    input_group.add_argument(
-        '--download-all',
-        action='store_true',
-        help='Download all cycling activities from Garmin Connect (no analysis)'
+    analyze_parser.add_argument(
+        '--ftp', type=int, help='Functional Threshold Power (W)'
     )
-    input_group.add_argument(
-        '--reanalyze-all',
-        action='store_true',
-        help='Re-analyze all downloaded activities and generate reports'
+    analyze_parser.add_argument(
+        '--max-hr', type=int, help='Maximum heart rate (bpm)'
+    )
+    analyze_parser.add_argument(
+        '--zones', type=str, help='Path to zones configuration file'
+    )
+    analyze_parser.add_argument(
+        '--cog', type=int, help='Cog size (teeth) for power calculations. Auto-detected if not provided'
+    )
+    analyze_parser.add_argument(
+        '--output-dir', type=str, default='output', help='Output directory for reports and charts'
+    )
+    analyze_parser.add_argument(
+        '--format', choices=['html', 'pdf', 'markdown'], default='html', help='Report format'
+    )
+    analyze_parser.add_argument(
+        '--charts', action='store_true', help='Generate charts'
+    )
+    analyze_parser.add_argument(
+        '--report', action='store_true', help='Generate comprehensive report'
+    )
+
+    # Batch command
+    batch_parser = subparsers.add_parser('batch', help='Analyze multiple workout files in a directory')
+    batch_parser.add_argument(
+        '--directory', '-d', required=True, type=str, help='Directory containing workout files'
+    )
+    batch_parser.add_argument(
+        '--output-dir', type=str, default='output', help='Output directory for reports and charts'
+    )
+    batch_parser.add_argument(
+        '--format', choices=['html', 'pdf', 'markdown'], default='html', help='Report format'
+    )
+    batch_parser.add_argument(
+        '--charts', action='store_true', help='Generate charts'
+    )
+    batch_parser.add_argument(
+        '--report', action='store_true', help='Generate comprehensive report'
+    )
+    batch_parser.add_argument(
+        '--summary', action='store_true', help='Generate summary report for multiple workouts'
+    )
+    batch_parser.add_argument(
+        '--ftp', type=int, help='Functional Threshold Power (W)'
+    )
+    batch_parser.add_argument(
+        '--max-hr', type=int, help='Maximum heart rate (bpm)'
+    )
+    batch_parser.add_argument(
+        '--zones', type=str, help='Path to zones configuration file'
+    )
+    batch_parser.add_argument(
+        '--cog', type=int, help='Cog size (teeth) for power calculations. Auto-detected if not provided'
+    )
+
+    # Download command
+    download_parser = subparsers.add_parser('download', help='Download activities from Garmin Connect')
+    download_parser.add_argument(
+        '--all', action='store_true', help='Download all cycling activities'
+    )
+    download_parser.add_argument(
+        '--workout-id', type=int, help='Download specific workout by ID'
+    )
+    download_parser.add_argument(
+        '--limit', type=int, default=50, help='Maximum number of activities to download (with --all)'
+    )
+    download_parser.add_argument(
+        '--output-dir', type=str, default='data', help='Directory to save downloaded files'
     )
     
-    # Analysis options
-    parser.add_argument(
-        '--ftp',
-        type=int,
-        help='Functional Threshold Power (W)'
+    # Reanalyze command
+    reanalyze_parser = subparsers.add_parser('reanalyze', help='Re-analyze all downloaded activities')
+    reanalyze_parser.add_argument(
+        '--input-dir', type=str, default='data', help='Directory containing downloaded workouts'
     )
-    
-    parser.add_argument(
-        '--max-hr',
-        type=int,
-        help='Maximum heart rate (bpm)'
+    reanalyze_parser.add_argument(
+        '--output-dir', type=str, default='output', help='Output directory for reports and charts'
     )
-    
-    parser.add_argument(
-        '--zones',
-        type=str,
-        help='Path to zones configuration file'
+    reanalyze_parser.add_argument(
+        '--format', choices=['html', 'pdf', 'markdown'], default='html', help='Report format'
     )
-    
-    parser.add_argument(
-        '--cog',
-        type=int,
-        help='Cog size (teeth) for power calculations. Auto-detected if not provided'
+    reanalyze_parser.add_argument(
+        '--charts', action='store_true', help='Generate charts'
     )
-    
-    # Output options
-    parser.add_argument(
-        '--output-dir',
-        type=str,
-        default='output',
-        help='Output directory for reports and charts'
+    reanalyze_parser.add_argument(
+        '--report', action='store_true', help='Generate comprehensive report'
     )
-    
-    parser.add_argument(
-        '--format',
-        choices=['html', 'pdf', 'markdown'],
-        default='html',
-        help='Report format'
+    reanalyze_parser.add_argument(
+        '--summary', action='store_true', help='Generate summary report for multiple workouts'
     )
-    
-    parser.add_argument(
-        '--charts',
-        action='store_true',
-        help='Generate charts'
+    reanalyze_parser.add_argument(
+        '--ftp', type=int, help='Functional Threshold Power (W)'
     )
-    
-    parser.add_argument(
-        '--report',
-        action='store_true',
-        help='Generate comprehensive report'
+    reanalyze_parser.add_argument(
+        '--max-hr', type=int, help='Maximum heart rate (bpm)'
     )
-    
-    parser.add_argument(
-        '--summary',
-        action='store_true',
-        help='Generate summary report for multiple workouts'
+    reanalyze_parser.add_argument(
+        '--zones', type=str, help='Path to zones configuration file'
     )
-    
+    reanalyze_parser.add_argument(
+        '--cog', type=int, help='Cog size (teeth) for power calculations. Auto-detected if not provided'
+    )
+
+    # Config command
+    config_parser = subparsers.add_parser('config', help='Manage configuration')
+    config_parser.add_argument(
+        '--show', action='store_true', help='Show current configuration'
+    )
+
     return parser.parse_args()
 
 
@@ -180,43 +201,57 @@ class GarminAnalyser:
         # Create report templates
         self.report_generator.create_report_templates()
     
-    def analyze_file(self, file_path: Path, cog_size: Optional[int] = None) -> dict:
+    def _apply_analysis_overrides(self, args: argparse.Namespace):
+        """Apply FTP, Max HR, and zones overrides from arguments."""
+        if hasattr(args, 'ftp') and args.ftp:
+            self.settings.FTP = args.ftp
+        if hasattr(args, 'max_hr') and args.max_hr:
+            self.settings.MAX_HEART_RATE = args.max_hr
+        if hasattr(args, 'zones') and args.zones:
+            self.settings.ZONES_FILE = args.zones
+            # Reload zones if the file path is updated
+            self.settings.load_zones(Path(args.zones))
+
+    def analyze_file(self, file_path: Path, args: argparse.Namespace) -> dict:
         """Analyze a single workout file.
 
         Args:
             file_path: Path to workout file
-            cog_size: Chainring teeth size for power calculations
+            args: Command line arguments including analysis overrides
 
         Returns:
             Analysis results
         """
         logging.info(f"Analyzing file: {file_path}")
+        self._apply_analysis_overrides(args)
 
-        # Parse workout file
         workout = self.file_parser.parse_file(file_path)
         if not workout:
             raise ValueError(f"Failed to parse file: {file_path}")
 
-        # Analyze workout
-        analysis = self.workout_analyzer.analyze_workout(workout, cog_size=cog_size)
+        # Determine cog size from args or auto-detect
+        cog_size = None
+        if hasattr(args, 'cog') and args.cog:
+            cog_size = args.cog
+        elif hasattr(args, 'auto_detect_cog') and args.auto_detect_cog:
+            # Implement auto-detection logic if needed, or rely on analyzer's default
+            pass
 
-        return {
-            'workout': workout,
-            'analysis': analysis,
-            'file_path': file_path
-        }
-    
-    def analyze_directory(self, directory: Path, cog_size: Optional[int] = None) -> List[dict]:
-        """Analyze all workout files in a directory.
+        analysis = self.workout_analyzer.analyze_workout(workout, cog_size=cog_size)
+        return {'workout': workout, 'analysis': analysis, 'file_path': file_path}
+
+    def batch_analyze_directory(self, directory: Path, args: argparse.Namespace) -> List[dict]:
+        """Analyze multiple workout files in a directory.
 
         Args:
             directory: Directory containing workout files
-            cog_size: Chainring teeth size for power calculations
+            args: Command line arguments including analysis overrides
 
         Returns:
             List of analysis results
         """
         logging.info(f"Analyzing directory: {directory}")
+        self._apply_analysis_overrides(args)
 
         results = []
         supported_extensions = {'.fit', '.tcx', '.gpx'}
@@ -224,168 +259,105 @@ class GarminAnalyser:
         for file_path in directory.rglob('*'):
             if file_path.suffix.lower() in supported_extensions:
                 try:
-                    result = self.analyze_file(file_path, cog_size=cog_size)
+                    result = self.analyze_file(file_path, args)
                     results.append(result)
                 except Exception as e:
                     logging.error(f"Error analyzing {file_path}: {e}")
-
         return results
-    
-    def download_from_garmin(self, days: int = 30, cog_size: Optional[int] = None) -> List[dict]:
-        """Download and analyze workouts from Garmin Connect.
+
+    def download_workouts(self, args: argparse.Namespace) -> List[dict]:
+        """Download workouts from Garmin Connect.
 
         Args:
-            days: Number of days to download
-            cog_size: Chainring teeth size for power calculations
+            args: Command line arguments for download options
 
         Returns:
-            List of analysis results
+            List of downloaded workout data or analysis results
         """
-        logging.info(f"Downloading workouts from Garmin Connect (last {days} days)")
+        email, password = self.settings.get_garmin_credentials()
+        client = GarminClient(email=email, password=password)
+        
+        download_output_dir = Path(getattr(args, 'output_dir', 'data'))
+        download_output_dir.mkdir(parents=True, exist_ok=True)
 
-        email, password = settings.get_garmin_credentials()
-        client = GarminClient(
-            email=email,
-            password=password
-        )
+        downloaded_activities = []
+        if getattr(args, 'all', False):
+            logging.info(f"Downloading up to {getattr(args, 'limit', 50)} cycling activities...")
+            downloaded_activities = client.download_all_workouts(limit=getattr(args, 'limit', 50), output_dir=download_output_dir)
+        elif getattr(args, 'workout_id', None):
+            logging.info(f"Downloading workout {args.workout_id}...")
+            activity_path = client.download_activity_original(str(args.workout_id), output_dir=download_output_dir)
+            if activity_path:
+                downloaded_activities.append({'file_path': activity_path})
+        else:
+            logging.info("Downloading latest cycling activity...")
+            activity_path = client.download_latest_workout(output_dir=download_output_dir)
+            if activity_path:
+                downloaded_activities.append({'file_path': activity_path})
 
-        # Download workouts
-        workouts = client.get_all_cycling_workouts()
-
-        # Analyze each workout
         results = []
-        for workout_summary in workouts:
-            try:
-                activity_id = workout_summary.get('activityId')
-                if not activity_id:
-                    logging.warning("Skipping workout with no activity ID.")
-                    continue
+        # Check if any analysis-related flags are set
+        if (getattr(args, 'charts', False)) or \
+           (getattr(args, 'report', False)) or \
+           (getattr(args, 'summary', False)) or \
+           (getattr(args, 'ftp', None)) or \
+           (getattr(args, 'max_hr', None)) or \
+           (getattr(args, 'zones', None)) or \
+           (getattr(args, 'cog', None)):
+            logging.info("Analyzing downloaded workouts...")
+            for activity_data in downloaded_activities:
+                file_path = activity_data['file_path']
+                try:
+                    result = self.analyze_file(file_path, args)
+                    results.append(result)
+                except Exception as e:
+                    logging.error(f"Error analyzing downloaded file {file_path}: {e}")
+        return results if results else downloaded_activities # Return analysis results if analysis was requested, else just downloaded file paths
 
-                logging.info(f"Downloading workout file for activity ID: {activity_id}")
-                workout_file_path = client.download_activity_original(str(activity_id))
-
-                if workout_file_path and workout_file_path.exists():
-                    workout = self.file_parser.parse_file(workout_file_path)
-                    if workout:
-                        analysis = self.workout_analyzer.analyze_workout(workout, cog_size=cog_size)
-                        results.append({
-                            'workout': workout,
-                            'analysis': analysis,
-                            'file_path': workout_file_path
-                        })
-                else:
-                    logging.error(f"Failed to download workout file for activity ID: {activity_id}")
-
-            except Exception as e:
-                logging.error(f"Error analyzing workout: {e}")
-
-        return results
-    
-    def download_all_workouts(self) -> List[dict]:
-        """Download all cycling activities from Garmin Connect without analysis.
-        
-        Returns:
-            List of downloaded workouts
-        """
-        email, password = settings.get_garmin_credentials()
-        client = GarminClient(
-            email=email,
-            password=password
-        )
-
-        # Download all cycling workouts
-        workouts = client.get_all_cycling_workouts()
-        
-        # Save workouts to files
-        data_dir = Path('data')
-        data_dir.mkdir(exist_ok=True)
-        
-        downloaded_workouts = []
-        for workout in workouts:
-            try:
-                # Generate filename
-                date_str = workout.metadata.start_time.strftime('%Y-%m-%d')
-                filename = f"{date_str}_{workout.metadata.activity_name.replace(' ', '_')}.fit"
-                file_path = data_dir / filename
-                
-                # Save workout data
-                client.download_workout_file(workout.id, file_path)
-                
-                downloaded_workouts.append({
-                    'workout': workout,
-                    'file_path': file_path
-                })
-                
-                logging.info(f"Downloaded: {filename}")
-                
-            except Exception as e:
-                logging.error(f"Error downloading workout {workout.id}: {e}")
-        
-        logging.info(f"Downloaded {len(downloaded_workouts)} workouts")
-        return downloaded_workouts
-    
-    def reanalyze_all_workouts(self, cog_size: Optional[int] = None) -> List[dict]:
+    def reanalyze_workouts(self, args: argparse.Namespace) -> List[dict]:
         """Re-analyze all downloaded workout files.
 
         Args:
-            cog_size: Chainring teeth size for power calculations
+            args: Command line arguments including input/output directories and analysis overrides
 
         Returns:
             List of analysis results
         """
         logging.info("Re-analyzing all downloaded workouts")
+        self._apply_analysis_overrides(args)
 
-        data_dir = Path('data')
-        if not data_dir.exists():
-            logging.error("No data directory found. Use --download-all first.")
+        input_dir = Path(getattr(args, 'input_dir', 'data'))
+        if not input_dir.exists():
+            logging.error(f"Input directory not found: {input_dir}. Please download workouts first.")
             return []
 
         results = []
         supported_extensions = {'.fit', '.tcx', '.gpx'}
 
-        for file_path in data_dir.rglob('*'):
+        for file_path in input_dir.rglob('*'):
             if file_path.suffix.lower() in supported_extensions:
                 try:
-                    result = self.analyze_file(file_path, cog_size=cog_size)
+                    result = self.analyze_file(file_path, args)
                     results.append(result)
                 except Exception as e:
                     logging.error(f"Error re-analyzing {file_path}: {e}")
-
         logging.info(f"Re-analyzed {len(results)} workouts")
         return results
     
-    def analyze_workout_by_id(self, workout_id: int, cog_size: Optional[int] = None) -> dict:
-        """Analyze a specific workout by ID from Garmin Connect.
-
-        Args:
-            workout_id: Garmin Connect workout ID
-            cog_size: Chainring teeth size for power calculations
-
-        Returns:
-            Analysis result
-        """
-        logging.info(f"Analyzing workout ID: {workout_id}")
-
-        email, password = settings.get_garmin_credentials()
-        client = GarminClient(
-            email=email,
-            password=password
-        )
-
-        # Download specific workout
-        workout = client.get_workout_by_id(workout_id)
-        if not workout:
-            raise ValueError(f"Workout not found: {workout_id}")
-
-        # Analyze workout
-        analysis = self.workout_analyzer.analyze_workout(workout, cog_size=cog_size)
-
-        return {
-            'workout': workout,
-            'analysis': analysis,
-            'file_path': None
+    def show_config(self):
+        """Display current configuration."""
+        logging.info("Current Configuration:")
+        logging.info("-" * 30)
+        config_dict = {
+            'FTP': self.settings.FTP,
+            'MAX_HEART_RATE': self.settings.MAX_HEART_RATE,
+            'ZONES_FILE': getattr(self.settings, 'ZONES_FILE', 'N/A'),
+            'REPORTS_DIR': self.settings.REPORTS_DIR,
+            'DATA_DIR': self.settings.DATA_DIR,
         }
-    
+        for key, value in config_dict.items():
+            logging.info(f"{key}: {value}")
+
     def generate_outputs(self, results: List[dict], args: argparse.Namespace):
         """Generate charts and reports based on results.
         
@@ -393,26 +365,26 @@ class GarminAnalyser:
             results: Analysis results
             args: Command line arguments
         """
-        output_dir = Path(args.output_dir)
+        output_dir = Path(getattr(args, 'output_dir', 'output'))
         output_dir.mkdir(exist_ok=True)
         
-        if args.charts:
+        if getattr(args, 'charts', False):
             logging.info("Generating charts...")
             for result in results:
-                charts = self.chart_generator.generate_workout_charts(
+                self.chart_generator.generate_workout_charts(
                     result['workout'], result['analysis']
                 )
-                logging.info(f"Charts saved to: {output_dir / 'charts'}")
+            logging.info(f"Charts saved to: {output_dir / 'charts'}")
         
-        if args.report:
+        if getattr(args, 'report', False):
             logging.info("Generating reports...")
             for result in results:
                 report_path = self.report_generator.generate_workout_report(
-                    result['workout'], result['analysis'], args.format
+                    result['workout'], result['analysis'], getattr(args, 'format', 'html')
                 )
                 logging.info(f"Report saved to: {report_path}")
         
-        if args.summary and len(results) > 1:
+        if getattr(args, 'summary', False) and len(results) > 1:
             logging.info("Generating summary report...")
             workouts = [r['workout'] for r in results]
             analyses = [r['analysis'] for r in results]
@@ -428,56 +400,57 @@ def main():
     setup_logging(args.verbose)
     
     try:
-        # Override settings with command line arguments
-        if args.ftp:
-            settings.FTP = args.ftp
-        if args.max_hr:
-            settings.MAX_HEART_RATE = args.max_hr
-        
-        # Initialize analyser
         analyser = GarminAnalyser()
-        
-        # Analyze workouts
         results = []
-        
-        if args.file:
-            file_path = Path(args.file)
-            if not file_path.exists():
-                logging.error(f"File not found: {file_path}")
-                sys.exit(1)
-            results = [analyser.analyze_file(file_path, cog_size=args.cog)]
 
-        elif args.directory:
+        if args.command == 'analyze':
+            if args.file:
+                file_path = Path(args.file)
+                if not file_path.exists():
+                    logging.error(f"File not found: {file_path}")
+                    sys.exit(1)
+                results = [analyser.analyze_file(file_path, args)]
+            elif args.garmin_connect or args.workout_id:
+                results = analyser.download_workouts(args)
+            else:
+                logging.error("Please specify a file, --garmin-connect, or --workout-id for the analyze command.")
+                sys.exit(1)
+            
+            if results: # Only generate outputs if there are results
+                analyser.generate_outputs(results, args)
+
+        elif args.command == 'batch':
             directory = Path(args.directory)
             if not directory.exists():
                 logging.error(f"Directory not found: {directory}")
                 sys.exit(1)
-            results = analyser.analyze_directory(directory, cog_size=args.cog)
+            results = analyser.batch_analyze_directory(directory, args)
+            
+            if results: # Only generate outputs if there are results
+                analyser.generate_outputs(results, args)
 
-        elif args.garmin_connect:
-            results = analyser.download_from_garmin(cog_size=args.cog)
+        elif args.command == 'download':
+            # Download workouts and potentially analyze them if analysis flags are present
+            results = analyser.download_workouts(args)
+            if results:
+                # If analysis was part of download, generate outputs
+                if (getattr(args, 'charts', False) or getattr(args, 'report', False) or getattr(args, 'summary', False)):
+                    analyser.generate_outputs(results, args)
+                else:
+                    logging.info(f"Downloaded {len(results)} activities to {getattr(args, 'output_dir', 'data')}")
+            logging.info("Download command complete!")
 
-        elif args.workout_id:
-            try:
-                results = [analyser.analyze_workout_by_id(args.workout_id, cog_size=args.cog)]
-            except ValueError as e:
-                logging.error(f"Error: {e}")
-                sys.exit(1)
+        elif args.command == 'reanalyze':
+            results = analyser.reanalyze_workouts(args)
+            if results: # Only generate outputs if there are results
+                analyser.generate_outputs(results, args)
 
-        elif args.download_all:
-            analyser.download_all_workouts()
-            logging.info("Download complete! Use --reanalyze-all to analyze downloaded workouts.")
-            return
-
-        elif args.reanalyze_all:
-            results = analyser.reanalyze_all_workouts(cog_size=args.cog)
+        elif args.command == 'config':
+            if getattr(args, 'show', False):
+                analyser.show_config()
         
-        # Generate outputs
-        if results:
-            analyser.generate_outputs(results, args)
-        
-        # Print summary
-        if results:
+        # Print summary for analyze, batch, reanalyze commands if results are available
+        if args.command in ['analyze', 'batch', 'reanalyze'] and results:
             logging.info(f"\nAnalysis complete! Processed {len(results)} workout(s)")
             for result in results:
                 workout = result['workout']
@@ -490,7 +463,7 @@ def main():
                 )
         
     except Exception as e:
-        logging.error(f"Error: {e}")
+        logging.error(f"Error: {e}", file=sys.stderr)
         if args.verbose:
             logging.exception("Full traceback:")
         sys.exit(1)

@@ -1,6 +1,6 @@
 # Garmin Analyser
 
-A comprehensive Python application for analyzing Garmin workout data from FIT, TCX, and GPX files, as well as direct integration with Garmin Connect. Provides detailed power, heart rate, and performance analysis with beautiful visualizations and comprehensive reports.
+A comprehensive Python application for analyzing Garmin workout data from FIT, TCX, and GPX files, as well as direct integration with Garmin Connect. Provides detailed power, heart rate, and performance analysis with beautiful visualizations and comprehensive reports via a modular command-line interface.
 
 ## Features
 
@@ -111,6 +111,10 @@ Output:
   Reports saved to output/ directory by default
   Charts saved to output/charts/ when --charts is used
 ```
+
+## Deprecation Notice
+
+The Text User Interface (TUI) and legacy analyzer have been removed in favor of the more robust and maintainable modular command-line interface (CLI). The project now relies exclusively on the modular CLI (`main.py` and `cli.py`) for all operations. All functionality from the legacy components has been successfully migrated to the modular stack.
 
 ## Setup credentials
 
