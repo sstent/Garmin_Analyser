@@ -41,6 +41,8 @@ except ImportError as e:
     print("Install with: pip install garminconnect fitparse python-dotenv pandas numpy matplotlib")
     sys.exit(1)
 
+from config.settings import get_garmin_credentials
+
 
 class GarminWorkoutAnalyzer:
     """Main class for analyzing Garmin workout data."""
@@ -122,14 +124,13 @@ class GarminWorkoutAnalyzer:
             print(f"Detected outdoor activity: {activity_name} (Type: {activity_type})")
         
     def connect_to_garmin(self) -> bool:
-        """Connect to Garmin Connect using credentials from .env file."""
-        username = os.getenv('GARMIN_USERNAME')
-        password = os.getenv('GARMIN_PASSWORD')
-        
+        """Connect to Garmin Connect using credentials from environment or config."""
+        username, password = get_garmin_credentials()
+
         if not username or not password:
-            print("Error: GARMIN_USERNAME and GARMIN_PASSWORD must be set in .env file")
+            print("Error: GARMIN_EMAIL and GARMIN_PASSWORD must be set in environment or config")
             return False
-            
+
         try:
             self.garmin_client = Garmin(username, password)
             self.garmin_client.login()
@@ -1778,7 +1779,7 @@ if __name__ == "__main__":
     if not env_file.exists():
         with open('.env', 'w') as f:
             f.write("# Garmin Connect Credentials\n")
-            f.write("GARMIN_USERNAME=your_username_here\n")
+            f.write("GARMIN_EMAIL=your_email_here\n")
             f.write("GARMIN_PASSWORD=your_password_here\n")
         print("Created .env file template. Please add your Garmin credentials.")
         sys.exit(1)

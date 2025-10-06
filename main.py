@@ -180,74 +180,78 @@ class GarminAnalyser:
         # Create report templates
         self.report_generator.create_report_templates()
     
-    def analyze_file(self, file_path: Path) -> dict:
+    def analyze_file(self, file_path: Path, cog_size: Optional[int] = None) -> dict:
         """Analyze a single workout file.
-        
+
         Args:
             file_path: Path to workout file
-            
+            cog_size: Chainring teeth size for power calculations
+
         Returns:
             Analysis results
         """
         logging.info(f"Analyzing file: {file_path}")
-        
+
         # Parse workout file
         workout = self.file_parser.parse_file(file_path)
         if not workout:
             raise ValueError(f"Failed to parse file: {file_path}")
-        
+
         # Analyze workout
-        analysis = self.workout_analyzer.analyze_workout(workout)
-        
+        analysis = self.workout_analyzer.analyze_workout(workout, cog_size=cog_size)
+
         return {
             'workout': workout,
             'analysis': analysis,
             'file_path': file_path
         }
     
-    def analyze_directory(self, directory: Path) -> List[dict]:
+    def analyze_directory(self, directory: Path, cog_size: Optional[int] = None) -> List[dict]:
         """Analyze all workout files in a directory.
-        
+
         Args:
             directory: Directory containing workout files
-            
+            cog_size: Chainring teeth size for power calculations
+
         Returns:
             List of analysis results
         """
         logging.info(f"Analyzing directory: {directory}")
-        
+
         results = []
         supported_extensions = {'.fit', '.tcx', '.gpx'}
-        
+
         for file_path in directory.rglob('*'):
             if file_path.suffix.lower() in supported_extensions:
                 try:
-                    result = self.analyze_file(file_path)
+                    result = self.analyze_file(file_path, cog_size=cog_size)
                     results.append(result)
                 except Exception as e:
                     logging.error(f"Error analyzing {file_path}: {e}")
-        
+
         return results
     
-    def download_from_garmin(self, days: int = 30) -> List[dict]:
+    def download_from_garmin(self, days: int = 30, cog_size: Optional[int] = None) -> List[dict]:
         """Download and analyze workouts from Garmin Connect.
-        
+
         Args:
             days: Number of days to download
-            
+            cog_size: Chainring teeth size for power calculations
+
         Returns:
             List of analysis results
         """
         logging.info(f"Downloading workouts from Garmin Connect (last {days} days)")
-        
+
+        email, password = settings.get_garmin_credentials()
         client = GarminClient(
-            email=settings.GARMIN_EMAIL,
-            password=settings.GARMIN_PASSWORD
+            email=email,
+            password=password
         )
-        
+
         # Download workouts
         workouts = client.get_all_cycling_workouts()
-        
+
         # Analyze each workout
         results = []
         for workout_summary in workouts:
@@ -263,7 +267,7 @@ class GarminAnalyser:
                 if workout_file_path and workout_file_path.exists():
                     workout = self.file_parser.parse_file(workout_file_path)
                     if workout:
-                        analysis = self.workout_analyzer.analyze_workout(workout)
+                        analysis = self.workout_analyzer.analyze_workout(workout, cog_size=cog_size)
                         results.append({
                             'workout': workout,
                             'analysis': analysis,
@@ -274,7 +278,7 @@ class GarminAnalyser:
 
             except Exception as e:
                 logging.error(f"Error analyzing workout: {e}")
-        
+
         return results
     
     def download_all_workouts(self) -> List[dict]:
@@ -283,11 +287,12 @@ class GarminAnalyser:
         Returns:
             List of downloaded workouts
         """
+        email, password = settings.get_garmin_credentials()
         client = GarminClient(
-            email=settings.GARMIN_EMAIL,
-            password=settings.GARMIN_PASSWORD
+            email=email,
+            password=password
         )
-        
+
         # Download all cycling workouts
         workouts = client.get_all_cycling_workouts()
         
@@ -319,57 +324,62 @@ class GarminAnalyser:
         logging.info(f"Downloaded {len(downloaded_workouts)} workouts")
         return downloaded_workouts
     
-    def reanalyze_all_workouts(self) -> List[dict]:
+    def reanalyze_all_workouts(self, cog_size: Optional[int] = None) -> List[dict]:
         """Re-analyze all downloaded workout files.
-        
+
+        Args:
+            cog_size: Chainring teeth size for power calculations
+
         Returns:
             List of analysis results
         """
         logging.info("Re-analyzing all downloaded workouts")
-        
+
         data_dir = Path('data')
         if not data_dir.exists():
             logging.error("No data directory found. Use --download-all first.")
             return []
-        
+
         results = []
         supported_extensions = {'.fit', '.tcx', '.gpx'}
-        
+
         for file_path in data_dir.rglob('*'):
             if file_path.suffix.lower() in supported_extensions:
                 try:
-                    result = self.analyze_file(file_path)
+                    result = self.analyze_file(file_path, cog_size=cog_size)
                     results.append(result)
                 except Exception as e:
                     logging.error(f"Error re-analyzing {file_path}: {e}")
-        
+
         logging.info(f"Re-analyzed {len(results)} workouts")
         return results
     
-    def analyze_workout_by_id(self, workout_id: int) -> dict:
+    def analyze_workout_by_id(self, workout_id: int, cog_size: Optional[int] = None) -> dict:
         """Analyze a specific workout by ID from Garmin Connect.
-        
+
         Args:
             workout_id: Garmin Connect workout ID
-            
+            cog_size: Chainring teeth size for power calculations
+
         Returns:
             Analysis result
         """
         logging.info(f"Analyzing workout ID: {workout_id}")
-        
+
+        email, password = settings.get_garmin_credentials()
         client = GarminClient(
-            email=settings.GARMIN_EMAIL,
-            password=settings.GARMIN_PASSWORD
+            email=email,
+            password=password
         )
-        
+
         # Download specific workout
         workout = client.get_workout_by_id(workout_id)
         if not workout:
             raise ValueError(f"Workout not found: {workout_id}")
-        
+
         # Analyze workout
-        analysis = self.workout_analyzer.analyze_workout(workout)
-        
+        analysis = self.workout_analyzer.analyze_workout(workout, cog_size=cog_size)
+
         return {
             'workout': workout,
             'analysis': analysis,
@@ -435,32 +445,32 @@ def main():
             if not file_path.exists():
                 logging.error(f"File not found: {file_path}")
                 sys.exit(1)
-            results = [analyser.analyze_file(file_path)]
-        
+            results = [analyser.analyze_file(file_path, cog_size=args.cog)]
+
         elif args.directory:
             directory = Path(args.directory)
             if not directory.exists():
                 logging.error(f"Directory not found: {directory}")
                 sys.exit(1)
-            results = analyser.analyze_directory(directory)
-        
+            results = analyser.analyze_directory(directory, cog_size=args.cog)
+
         elif args.garmin_connect:
-            results = analyser.download_from_garmin()
-        
+            results = analyser.download_from_garmin(cog_size=args.cog)
+
         elif args.workout_id:
             try:
-                results = [analyser.analyze_workout_by_id(args.workout_id)]
+                results = [analyser.analyze_workout_by_id(args.workout_id, cog_size=args.cog)]
             except ValueError as e:
                 logging.error(f"Error: {e}")
                 sys.exit(1)
-        
+
         elif args.download_all:
             analyser.download_all_workouts()
             logging.info("Download complete! Use --reanalyze-all to analyze downloaded workouts.")
             return
-        
+
         elif args.reanalyze_all:
-            results = analyser.reanalyze_all_workouts()
+            results = analyser.reanalyze_all_workouts(cog_size=args.cog)
         
         # Generate outputs
         if results:

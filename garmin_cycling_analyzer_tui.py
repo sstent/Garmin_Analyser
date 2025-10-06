@@ -839,7 +839,7 @@ class GarminTUIApp(App):
             self.notify("Creating .env file template. Please add your Garmin credentials.", severity="warning")
             with open('.env', 'w') as f:
                 f.write("# Garmin Connect Credentials\n")
-                f.write("GARMIN_USERNAME=your_username_here\n")
+                f.write("GARMIN_EMAIL=your_email_here\n")
                 f.write("GARMIN_PASSWORD=your_password_here\n")
             self.exit(message="Please edit .env file with your Garmin credentials")
             return

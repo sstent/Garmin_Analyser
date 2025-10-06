@@ -4,7 +4,7 @@ A comprehensive Python application for analyzing Garmin workout data from FIT, T
 
 ## Features
 
-- **Multi-format Support**: Parse FIT, TCX, and GPX workout files
+- **Multi-format Support**: Parse FIT files. TCX and GPX parsing is not yet implemented and is planned for a future enhancement.
 - **Garmin Connect Integration**: Direct download from Garmin Connect
 - **Comprehensive Analysis**: Power, heart rate, speed, elevation, and zone analysis
 - **Advanced Metrics**: Normalized Power, Intensity Factor, Training Stress Score
@@ -112,6 +112,42 @@ Output:
   Charts saved to output/charts/ when --charts is used
 ```
 
+## Setup credentials
+
+Canonical environment variables:
+- GARMIN_EMAIL
+- GARMIN_PASSWORD
+
+Single source of truth:
+- Credentials are centrally accessed via [get_garmin_credentials()](config/settings.py:31). If GARMIN_EMAIL is not set but GARMIN_USERNAME is present, the username value is used as email and a one-time deprecation warning is logged. GARMIN_USERNAME is deprecated and will be removed in a future version.
+
+Linux/macOS (bash/zsh):
+```bash
+export GARMIN_EMAIL="you@example.com"
+export GARMIN_PASSWORD="your-app-password"
+```
+
+Windows PowerShell:
+```powershell
+$env:GARMIN_EMAIL = "you@example.com"
+$env:GARMIN_PASSWORD = "your-app-password"
+```
+
+.env sample:
+```dotenv
+GARMIN_EMAIL=you@example.com
+GARMIN_PASSWORD=your-app-password
+```
+
+Note on app passwords:
+- If your Garmin account uses two-factor authentication or app-specific passwords, create an app password in your Garmin account settings and use it for GARMIN_PASSWORD.
+
+TUI with dotenv:
+- When using the TUI with dotenv, prefer GARMIN_EMAIL and GARMIN_PASSWORD in your .env file. GARMIN_USERNAME continues to work via fallback with a one-time deprecation warning, but it is deprecated; switch to GARMIN_EMAIL.
+
+Parity and unaffected behavior:
+- Authentication and download parity is maintained. Original ZIP downloads and FIT extraction workflows are unchanged in [clients/garmin_client.py](clients/garmin_client.py).
+- Alternate format downloads (FIT, TCX, GPX) are unaffected by this credentials change.
 ## Configuration
 
 ### Basic Configuration
@@ -120,8 +156,8 @@ Create a `config/config.yaml` file:
 
 ```yaml
 # Garmin Connect credentials
-garmin_username: your_username
-garmin_password: your_password
+# Credentials are provided via environment variables (GARMIN_EMAIL, GARMIN_PASSWORD).
+# Do not store credentials in config.yaml. See "Setup credentials" in README.
 
 # Output settings
 output_dir: output
@@ -227,6 +263,18 @@ python main.py --directory data/workouts/ --summary --charts --format html
 python main.py --directory data/workouts/ --zones config/zones.yaml --summary
 ```
 
+### Reports: normalized variables example
+
+Reports consume normalized speed and heart rate keys in templates. Example (HTML template):
+
+```jinja2
+{# See workout_report.html #}
+<p>Sport: {{ metadata.sport }} ({{ metadata.sub_sport }})</p>
+<p>Speed: {{ summary.avg_speed_kmh|default(0) }} km/h; HR: {{ summary.avg_hr|default(0) }} bpm</p>
+```
+
+- Template references: [workout_report.html](visualizers/templates/workout_report.html:1), [workout_report.md](visualizers/templates/workout_report.md:1)
+
 ### Garmin Connect Integration
 
 ```bash
@@ -281,6 +329,43 @@ output/
 - Analysis of interval duration, power, and recovery
 - Summary of interval performance
 
+## Analysis outputs and normalized naming
+
+The analyzer and report pipeline now provide normalized keys for speed and heart rate to ensure consistent units and naming across code and templates. See [WorkoutAnalyzer.analyze_workout()](analyzers/workout_analyzer.py:1) and [ReportGenerator._prepare_report_data()](visualizers/report_generator.py:1) for implementation details.
+
+- Summary keys:
+  - summary.avg_speed_kmh — Average speed in km/h (derived from speed_mps)
+  - summary.avg_hr — Average heart rate in beats per minute (bpm)
+- Speed analysis keys:
+  - speed_analysis.avg_speed_kmh — Average speed in km/h
+  - speed_analysis.max_speed_kmh — Maximum speed in km/h
+- Heart rate analysis keys:
+  - heart_rate_analysis.avg_hr — Average heart rate (bpm)
+  - heart_rate_analysis.max_hr — Maximum heart rate (bpm)
+- Backward-compatibility aliases maintained in code:
+  - summary.avg_speed — Alias of avg_speed_kmh
+  - summary.avg_heart_rate — Alias of avg_hr
+
+Guidance: templates should use the normalized names going forward.
+
+## Templates: variables and metadata
+
+Templates should reference normalized variables and the workout metadata fields:
+- Use metadata.sport and metadata.sub_sport instead of activity_type.
+- Example snippet referencing normalized keys:
+  - speed: {{ summary.avg_speed_kmh }} km/h; HR: {{ summary.avg_hr }} bpm
+- For defensive rendering, Jinja defaults may be used (e.g., {{ summary.avg_speed_kmh|default(0) }}), though normalized keys are expected to be present.
+
+Reference templates:
+- [workout_report.html](visualizers/templates/workout_report.html:1)
+- [workout_report.md](visualizers/templates/workout_report.md:1)
+
+## Migration note
+
+- Legacy template fields avg_speed and avg_heart_rate are deprecated; the code provides aliases (summary.avg_speed → avg_speed_kmh, summary.avg_heart_rate → avg_hr) to prevent breakage temporarily.
+- Users should update custom templates to use avg_speed_kmh and avg_hr.
+- metadata.activity_type is replaced by metadata.sport and metadata.sub_sport.
+
 ## Customization
 
 ### Custom Report Templates
@@ -322,7 +407,7 @@ def generate_custom_chart(self, workout: WorkoutData, analysis: dict) -> str:
 - Check file permissions
 
 **Garmin Connect Authentication**
-- Verify username and password in config
+- Verify GARMIN_EMAIL and GARMIN_PASSWORD environment variables (or entries in your .env) are set; fallback from GARMIN_USERNAME logs a one-time deprecation warning via [get_garmin_credentials()](config/settings.py:31)
 - Check internet connection
 - Ensure Garmin Connect account is active
 

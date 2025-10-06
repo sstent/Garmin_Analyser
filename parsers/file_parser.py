@@ -12,7 +12,8 @@ except ImportError:
     raise ImportError("fitparse package required. Install with: pip install fitparse")
 
 from models.workout import WorkoutData, WorkoutMetadata, PowerData, HeartRateData, SpeedData, ElevationData, GearData
-from config.settings import SUPPORTED_FORMATS
+from config.settings import SUPPORTED_FORMATS, BikeConfig, INDOOR_KEYWORDS
+from utils.gear_estimation import estimate_gear_series, compute_gear_summary
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,9 @@ class FileParser:
                 sub_sport=session_data.get('sub_sport'),
                 is_indoor=session_data.get('is_indoor', False)
             )
+
+            if not metadata.is_indoor and metadata.activity_name:
+                metadata.is_indoor = any(keyword in metadata.activity_name.lower() for keyword in INDOOR_KEYWORDS)
             
             # Create workout data
             workout_data = WorkoutData(
@@ -288,8 +292,11 @@ class FileParser:
             return None
         
         # Calculate gradients
-        gradient_values = self._calculate_gradients(elevation_values)
-        
+        gradient_values = self._calculate_gradients(df)
+
+        # Add gradient column to DataFrame
+        df['gradient_percent'] = gradient_values
+
         return ElevationData(
             elevation_values=elevation_values,
             gradient_values=gradient_values,
@@ -301,50 +308,129 @@ class FileParser:
     
     def _extract_gear_data(self, df: pd.DataFrame) -> Optional[GearData]:
         """Extract gear data from DataFrame.
-        
+
         Args:
             df: DataFrame with workout data
-            
+
         Returns:
             GearData object or None
         """
-        if 'cadence' not in df.columns:
+        if 'cadence_rpm' not in df.columns or 'speed_mps' not in df.columns:
+            logger.info("Gear estimation skipped: missing speed_mps or cadence_rpm columns")
             return None
-        
-        cadence_values = df['cadence'].dropna().tolist()
-        if not cadence_values:
+
+        # Estimate gear series
+        gear_series = estimate_gear_series(
+            df,
+            wheel_circumference_m=BikeConfig.TIRE_CIRCUMFERENCE_M,
+            valid_configurations=BikeConfig.VALID_CONFIGURATIONS
+        )
+
+        if gear_series.empty:
+            logger.info("Gear estimation skipped: no valid data for estimation")
             return None
-        
+
+        # Compute summary
+        summary = compute_gear_summary(gear_series)
+
         return GearData(
-            gear_ratios=[],
-            cadence_values=cadence_values,
-            estimated_gear=[],
-            chainring_teeth=38,  # Default
-            cassette_teeth=[14, 16, 18, 20]
+            series=gear_series,
+            summary=summary
         )
     
-    def _calculate_gradients(self, elevation_values: List[float]) -> List[float]:
-        """Calculate gradients from elevation data.
-        
+    def _distance_window_indices(self, distance: np.ndarray, half_window_m: float) -> tuple[np.ndarray, np.ndarray]:
+        """Compute backward and forward indices for distance-based windowing.
+
+        For each sample i, find the closest indices j <= i and k >= i such that
+        distance[i] - distance[j] >= half_window_m and distance[k] - distance[i] >= half_window_m.
+
         Args:
-            elevation_values: List of elevation values in meters
-            
+            distance: Monotonic array of cumulative distances in meters
+            half_window_m: Half window size in meters
+
         Returns:
-            List of gradient values in percent
+            Tuple of (j_indices, k_indices) arrays
         """
-        if len(elevation_values) < 2:
-            return [0.0] * len(elevation_values)
-        
-        gradients = [0.0]  # First point has no gradient
-        
-        for i in range(1, len(elevation_values)):
-            elevation_diff = elevation_values[i] - elevation_values[i-1]
-            # Assume 10m distance between points for gradient calculation
-            distance = 10.0
-            gradient = (elevation_diff / distance) * 100
-            gradients.append(gradient)
-        
-        return gradients
+        n = len(distance)
+        j_indices = np.full(n, -1, dtype=int)
+        k_indices = np.full(n, -1, dtype=int)
+
+        for i in range(n):
+            # Find largest j <= i where distance[i] - distance[j] >= half_window_m
+            j = i
+            while j >= 0 and distance[i] - distance[j] < half_window_m:
+                j -= 1
+            j_indices[i] = max(j, 0)
+
+            # Find smallest k >= i where distance[k] - distance[i] >= half_window_m
+            k = i
+            while k < n and distance[k] - distance[i] < half_window_m:
+                k += 1
+            k_indices[i] = min(k, n - 1)
+
+        return j_indices, k_indices
+
+    def _calculate_gradients(self, df: pd.DataFrame) -> List[float]:
+        """Calculate smoothed, distance-referenced gradients from elevation data.
+
+        Computes gradients using a distance-based smoothing window, handling missing
+        distance/speed/elevation data gracefully. Assumes 1 Hz sampling for distance
+        derivation if speed is available but distance is not.
+
+        Args:
+            df: DataFrame containing elevation, distance, and speed columns
+
+        Returns:
+            List of gradient values in percent, with NaN for invalid computations
+        """
+        from config.settings import SMOOTHING_WINDOW
+
+        n = len(df)
+        if n < 2:
+            return [np.nan] * n
+
+        # Derive distance array
+        if 'distance' in df.columns:
+            distance = df['distance'].values.astype(float)
+            if not np.all(distance[1:] >= distance[:-1]):
+                logger.warning("Distance not monotonic, deriving from speed")
+                distance = None  # Fall through to speed derivation
+        else:
+            distance = None
+
+        if distance is None:
+            if 'speed' in df.columns:
+                speed = df['speed'].values.astype(float)
+                distance = np.cumsum(speed)  # dt=1 assumed
+            else:
+                logger.warning("No distance or speed available, cannot compute gradients")
+                return [np.nan] * n
+
+        # Get elevation
+        elevation_col = 'altitude' if 'altitude' in df.columns else 'elevation'
+        elevation = df[elevation_col].values.astype(float)
+
+        half_window = SMOOTHING_WINDOW / 2
+        j_arr, k_arr = self._distance_window_indices(distance, half_window)
+
+        gradients = []
+        for i in range(n):
+            j, k = j_arr[i], k_arr[i]
+            if distance[k] - distance[j] >= 1 and not (pd.isna(elevation[j]) or pd.isna(elevation[k])):
+                delta_elev = elevation[k] - elevation[j]
+                delta_dist = distance[k] - distance[j]
+                grad = 100 * delta_elev / delta_dist
+                grad = np.clip(grad, -30, 30)
+                gradients.append(grad)
+            else:
+                gradients.append(np.nan)
+
+        # Light smoothing: rolling median over 5 samples, interpolate isolated NaNs
+        grad_series = pd.Series(gradients)
+        smoothed = grad_series.rolling(5, center=True, min_periods=1).median()
+        smoothed = smoothed.interpolate(limit=3, limit_direction='both')
+
+        return smoothed.tolist()
     
     def _parse_tcx(self, file_path: Path) -> Optional[WorkoutData]:
         """Parse TCX file format.
@@ -355,8 +441,7 @@ class FileParser:
         Returns:
             WorkoutData object or None if parsing failed
         """
-        logger.warning("TCX parser not implemented yet")
-        return None
+        raise NotImplementedError("TCX file parsing is not yet implemented.")
     
     def _parse_gpx(self, file_path: Path) -> Optional[WorkoutData]:
         """Parse GPX file format.
@@ -367,5 +452,4 @@ class FileParser:
         Returns:
             WorkoutData object or None if parsing failed
         """
-        logger.warning("GPX parser not implemented yet")
-        return None
+        raise NotImplementedError("GPX file parsing is not yet implemented.")

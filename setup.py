@@ -48,10 +48,11 @@ setup(
     entry_points={
         "console_scripts": [
             "garmin-analyser=main:main",
+            "garmin-analyzer-cli=cli:main",
         ],
     },
     include_package_data=True,
     package_data={
-        "": ["config/*.yaml", "templates/*.html", "templates/*.md"],
+        "garmin_analyser": ["config/*.yaml", "visualizers/templates/*.html", "visualizers/templates/*.md"],
     },
 )

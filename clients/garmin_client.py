@@ -12,7 +12,7 @@ try:
 except ImportError:
     raise ImportError("garminconnect package required. Install with: pip install garminconnect")
 
-from config.settings import GARMIN_EMAIL, GARMIN_PASSWORD, DATA_DIR
+from config.settings import get_garmin_credentials, DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -22,19 +22,16 @@ class GarminClient:
     
     def __init__(self, email: Optional[str] = None, password: Optional[str] = None):
         """Initialize Garmin client.
-        
+
         Args:
-            email: Garmin Connect email (defaults to GARMIN_EMAIL env var)
-            password: Garmin Connect password (defaults to GARMIN_PASSWORD env var)
+            email: Garmin Connect email (defaults to standardized accessor)
+            password: Garmin Connect password (defaults to standardized accessor)
         """
-        self.email = email or GARMIN_EMAIL
-        self.password = password or GARMIN_PASSWORD
-        
-        if not self.email or not self.password:
-            raise ValueError(
-                "Garmin credentials not provided. Set GARMIN_EMAIL and GARMIN_PASSWORD "
-                "environment variables or pass credentials to constructor."
-            )
+        if email and password:
+            self.email = email
+            self.password = password
+        else:
+            self.email, self.password = get_garmin_credentials()
         
         self.client = None
         self._authenticated = False

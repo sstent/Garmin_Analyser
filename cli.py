@@ -13,13 +13,13 @@ from pathlib import Path
 from typing import List, Optional
 
 # Import from the new structure
-from Garmin_Analyser.parsers.file_parser import FileParser
-from Garmin_Analyser.analyzers.workout_analyzer import WorkoutAnalyzer
-from Garmin_Analyser.config import settings
+from parsers.file_parser import FileParser
+from analyzers.workout_analyzer import WorkoutAnalyzer
+from config import settings
 
 # Import for Garmin Connect functionality
 try:
-    from Garmin_Analyser.clients.garmin_client import GarminClient
+    from clients.garmin_client import GarminClient
     GARMIN_CLIENT_AVAILABLE = True
 except ImportError:
     GARMIN_CLIENT_AVAILABLE = False

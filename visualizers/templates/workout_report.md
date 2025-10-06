@@ -33,6 +33,16 @@
 - **Average Speed:** {{ workout.speed_analysis.avg_speed|format_speed }}
 - **Maximum Speed:** {{ workout.speed_analysis.max_speed|format_speed }}
 
+{% if minute_by_minute %}
+### Minute-by-Minute Analysis
+
+| Minute | Dist (km) | Speed (km/h) | Cadence | HR | Max HR | Grad (%) | Elev (m) | Power (W) |
+|--------|-----------|--------------|---------|----|--------|----------|----------|-----------|
+{% for row in minute_by_minute -%}
+| {{ row.minute_index }} | {{ "%.2f"|format(row.distance_km) if row.distance_km is not none }} | {{ "%.1f"|format(row.avg_speed_kmh) if row.avg_speed_kmh is not none }} | {{ "%.0f"|format(row.avg_cadence) if row.avg_cadence is not none }} | {{ "%.0f"|format(row.avg_hr) if row.avg_hr is not none }} | {{ "%.0f"|format(row.max_hr) if row.max_hr is not none }} | {{ "%.1f"|format(row.avg_gradient) if row.avg_gradient is not none }} | {{ "%.1f"|format(row.elevation_change) if row.elevation_change is not none }} | {{ "%.0f"|format(row.avg_real_power or row.avg_power_estimate) if (row.avg_real_power or row.avg_power_estimate) is not none }} |
+{% endfor %}
+{% endif %}
+
 ---
 
 *Report generated on {{ report.generated_at }} using {{ report.tool }} v{{ report.version }}*

@@ -79,12 +79,9 @@ class ElevationData:
 @dataclass
 class GearData:
     """Gear-related data for a workout."""
-    
-    gear_ratios: List[float]
-    cadence_values: List[float]
-    estimated_gear: List[str]
-    chainring_teeth: int
-    cassette_teeth: List[int]
+
+    series: pd.Series  # Per-sample gear selection with columns: chainring_teeth, cog_teeth, gear_ratio, confidence
+    summary: Dict[str, Any]  # Time-in-gear distribution, top N gears by time, unique gears count
 
 
 @dataclass

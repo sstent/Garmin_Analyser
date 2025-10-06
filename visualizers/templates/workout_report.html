@@ -159,6 +159,40 @@
             </tr>
         </table>
         
+        {% if minute_by_minute %}
+        <h2>Minute-by-Minute Analysis</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Minute</th>
+                    <th>Distance (km)</th>
+                    <th>Avg Speed (km/h)</th>
+                    <th>Avg Cadence</th>
+                    <th>Avg HR</th>
+                    <th>Max HR</th>
+                    <th>Avg Gradient (%)</th>
+                    <th>Elevation Change (m)</th>
+                    <th>Avg Power (W)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in minute_by_minute %}
+                <tr>
+                    <td>{{ row.minute_index }}</td>
+                    <td>{{ "%.2f"|format(row.distance_km) if row.distance_km is not none }}</td>
+                    <td>{{ "%.1f"|format(row.avg_speed_kmh) if row.avg_speed_kmh is not none }}</td>
+                    <td>{{ "%.0f"|format(row.avg_cadence) if row.avg_cadence is not none }}</td>
+                    <td>{{ "%.0f"|format(row.avg_hr) if row.avg_hr is not none }}</td>
+                    <td>{{ "%.0f"|format(row.max_hr) if row.max_hr is not none }}</td>
+                    <td>{{ "%.1f"|format(row.avg_gradient) if row.avg_gradient is not none }}</td>
+                    <td>{{ "%.1f"|format(row.elevation_change) if row.elevation_change is not none }}</td>
+                    <td>{{ "%.0f"|format(row.avg_real_power or row.avg_power_estimate) if (row.avg_real_power or row.avg_power_estimate) is not none }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
         <div class="footer">
             <p>Report generated on {{ report.generated_at }} using {{ report.tool }} v{{ report.version }}</p>
         </div>
