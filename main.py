@@ -280,15 +280,26 @@ class GarminAnalyser:
         download_output_dir = Path(getattr(args, 'output_dir', 'data'))
         download_output_dir.mkdir(parents=True, exist_ok=True)
 
+        logging.debug(f"download_workouts: all={getattr(args, 'all', False)}, workout_id={getattr(args, 'workout_id', None)}, limit={getattr(args, 'limit', 50)}, output_dir={download_output_dir}")
+
         downloaded_activities = []
         if getattr(args, 'all', False):
             logging.info(f"Downloading up to {getattr(args, 'limit', 50)} cycling activities...")
             downloaded_activities = client.download_all_workouts(limit=getattr(args, 'limit', 50), output_dir=download_output_dir)
         elif getattr(args, 'workout_id', None):
             logging.info(f"Downloading workout {args.workout_id}...")
-            activity_path = client.download_activity_original(str(args.workout_id), output_dir=download_output_dir)
+            activity_path = client.download_activity_original(str(args.workout_id))
             if activity_path:
-                downloaded_activities.append({'file_path': activity_path})
+                dest_path = download_output_dir / activity_path.name
+                try:
+                    if activity_path.resolve() != dest_path.resolve():
+                        if dest_path.exists():
+                            dest_path.unlink()
+                        activity_path.rename(dest_path)
+                except Exception as move_err:
+                    logging.error(f"Failed to move {activity_path} to {dest_path}: {move_err}")
+                    dest_path = activity_path
+                downloaded_activities.append({'file_path': dest_path})
         else:
             logging.info("Downloading latest cycling activity...")
             activity_path = client.download_latest_workout(output_dir=download_output_dir)
@@ -463,7 +474,7 @@ def main():
                 )
         
     except Exception as e:
-        logging.error(f"Error: {e}", file=sys.stderr)
+        logging.error(f"Error: {e}")
         if args.verbose:
             logging.exception("Full traceback:")
         sys.exit(1)

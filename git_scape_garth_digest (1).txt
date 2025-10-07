@@ -1,0 +1,4741 @@
+Repository: https://github.com/matin/garth
+Files analyzed: 47
+
+Directory structure:
+└── matin-garth/
+    ├── .devcontainer
+    │   ├── Dockerfile
+    │   └── noop.txt
+    ├── .github
+    │   ├── workflows
+    │   │   ├── ci.yml
+    │   │   └── publish.yml
+    │   └── dependabot.yml
+    ├── colabs
+    │   ├── chatgpt_analysis_of_stats.ipynb
+    │   ├── sleep.ipynb
+    │   └── stress.ipynb
+    ├── src
+    │   └── garth
+    │       ├── data
+    │       │   ├── body_battery
+    │       │   │   ├── __init__.py
+    │       │   │   ├── daily_stress.py
+    │       │   │   ├── events.py
+    │       │   │   └── readings.py
+    │       │   ├── __init__.py
+    │       │   ├── _base.py
+    │       │   ├── hrv.py
+    │       │   ├── sleep.py
+    │       │   └── weight.py
+    │       ├── stats
+    │       │   ├── __init__.py
+    │       │   ├── _base.py
+    │       │   ├── hrv.py
+    │       │   ├── hydration.py
+    │       │   ├── intensity_minutes.py
+    │       │   ├── sleep.py
+    │       │   ├── steps.py
+    │       │   └── stress.py
+    │       ├── users
+    │       │   ├── __init__.py
+    │       │   ├── profile.py
+    │       │   └── settings.py
+    │       ├── __init__.py
+    │       ├── auth_tokens.py
+    │       ├── cli.py
+    │       ├── exc.py
+    │       ├── http.py
+    │       ├── py.typed
+    │       ├── sso.py
+    │       ├── utils.py
+    │       └── version.py
+    ├── tests
+    │   ├── cassettes
+    │   ├── data
+    │   │   ├── cassettes
+    │   │   ├── test_body_battery_data.py
+    │   │   ├── test_hrv_data.py
+    │   │   ├── test_sleep_data.py
+    │   │   └── test_weight_data.py
+    │   ├── stats
+    │   │   ├── cassettes
+    │   │   ├── test_hrv.py
+    │   │   ├── test_hydration.py
+    │   │   ├── test_intensity_minutes.py
+    │   │   ├── test_sleep_stats.py
+    │   │   ├── test_steps.py
+    │   │   └── test_stress.py
+    │   ├── 12129115726_ACTIVITY.fit
+    │   ├── conftest.py
+    │   ├── test_auth_tokens.py
+    │   ├── test_cli.py
+    │   ├── test_http.py
+    │   ├── test_sso.py
+    │   ├── test_users.py
+    │   └── test_utils.py
+    ├── .gitattributes
+    ├── .gitignore
+    ├── LICENSE
+    ├── Makefile
+    ├── pyproject.toml
+    └── README.md
+
+
+================================================
+FILE: README.md
+================================================
+# Garth
+
+[![CI](https://github.com/matin/garth/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](
+    https://github.com/matin/garth/actions/workflows/ci.yml?query=event%3Apush+branch%3Amain+workflow%3ACI)
+[![codecov](
+    https://codecov.io/gh/matin/garth/branch/main/graph/badge.svg?token=0EFFYJNFIL)](
+    https://codecov.io/gh/matin/garth)
+[![PyPI version](
+    https://img.shields.io/pypi/v/garth.svg?logo=python&logoColor=brightgreen&color=brightgreen)](
+    https://pypi.org/project/garth/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/garth)](
+    https://pypistats.org/packages/garth)
+
+Garmin SSO auth + Connect Python client
+
+## Garmin Connect MCP Server
+
+[`garth-mcp-server`](https://github.com/matin/garth-mcp-server) is in early development.
+Contributions are greatly appreciated.
+
+To generate your `GARTH_TOKEN`, use `uvx garth login`.
+For China, do `uvx garth --domain garmin.cn login`.
+
+## Google Colabs
+
+### [Stress: 28-day rolling average](https://colab.research.google.com/github/matin/garth/blob/main/colabs/stress.ipynb)
+
+Stress levels from one day to another can vary by extremes, but there's always
+a general trend. Using a scatter plot with a rolling average shows both the
+individual days and the trend. The Colab retrieves up to three years of daily
+data. If there's less than three years of data, it retrieves whatever is
+available.
+
+![Stress: Garph of 28-day rolling average](
+    https://github.com/matin/garth/assets/98985/868ecf25-4644-4879-b28f-ed0706a9e7b9)
+
+### [Sleep analysis over 90 days](https://colab.research.google.com/github/matin/garth/blob/main/colabs/sleep.ipynb)
+
+The Garmin Connect app only shows a maximum of seven days for sleep
+stages—making it hard to see trends. The Connect API supports retrieving
+daily sleep quality in 28-day pages, but that doesn't show details. Using
+`SleedData.list()` gives us the ability to retrieve an arbitrary number of
+day with enough detail to product a stacked bar graph of the daily sleep
+stages.
+
+![Sleep stages over 90 days](
+    https://github.com/matin/garth/assets/98985/ba678baf-0c8a-4907-aa91-be43beec3090)
+
+One specific graph that's useful but not available in the Connect app is
+sleep start and end times over an extended period. This provides context
+to the sleep hours and stages.
+
+![Sleep times over 90 days](
+    https://github.com/matin/garth/assets/98985/c5583b9e-ab8a-4b5c-bfe6-1cb0ca95d1de)
+
+### [ChatGPT analysis of Garmin stats](https://colab.research.google.com/github/matin/garth/blob/main/colabs/chatgpt_analysis_of_stats.ipynb)
+
+ChatGPT's Advanced Data Analysis took can provide incredible insight
+into the data in a way that's much simpler than using Pandas and Matplotlib.
+
+Start by using the linked Colab to download a CSV of the last three years
+of your stats, and upload the CSV to ChatGPT.
+
+Here's the outputs of the following prompts:
+
+How do I sleep on different days of the week?
+
+<img width="600" alt="image" src="https://github.com/matin/garth/assets/98985/b7507459-2482-43d6-bf55-c3a1f756facb">
+
+On what days do I exercise the most?
+
+<img width="600" alt="image" src="https://github.com/matin/garth/assets/98985/11294be2-8e1a-4fed-a489-13420765aada">
+
+Magic!
+
+## Background
+
+Garth is meant for personal use and follows the philosophy that your data is
+your data. You should be able to download it and analyze it in the way that
+you'd like. In my case, that means processing with Google Colab, Pandas,
+Matplotlib, etc.
+
+There are already a few Garmin Connect libraries. Why write another?
+
+### Authentication and stability
+
+The most important reasoning is to build a library with authentication that
+works on [Google Colab](https://colab.research.google.com/) and doesn't require
+tools like Cloudscraper. Garth, in comparison:
+
+1. Uses OAuth1 and OAuth2 token authentication after initial login
+1. OAuth1 token survives for a year
+1. Supports MFA
+1. Auto-refresh of OAuth2 token when expired
+1. Works on Google Colab
+1. Uses Pydantic dataclasses to validate and simplify use of data
+1. Full test coverage
+
+### JSON vs HTML
+
+Using `garth.connectapi()` allows you to make requests to the Connect API
+and receive JSON vs needing to parse HTML. You can use the same endpoints the
+mobile app uses.
+
+This also goes back to authentication. Garth manages the necessary Bearer
+Authentication (along with auto-refresh) necessary to make requests routed to
+the Connect API.
+
+## Instructions
+
+### Install
+
+```bash
+python -m pip install garth
+```
+
+### Clone, setup environment and run tests
+
+```bash
+gh repo clone matin/garth
+cd garth
+make install
+make
+```
+
+Use `make help` to see all the options.
+
+### Authenticate and save session
+
+```python
+import garth
+from getpass import getpass
+
+email = input("Enter email address: ")
+password = getpass("Enter password: ")
+# If there's MFA, you'll be prompted during the login
+garth.login(email, password)
+
+garth.save("~/.garth")
+```
+
+### Custom MFA handler
+
+By default, MFA will prompt for the code in the terminal. You can provide your
+own handler:
+
+```python
+garth.login(email, password, prompt_mfa=lambda: input("Enter MFA code: "))
+```
+
+For advanced use cases (like async handling), MFA can be handled separately:
+
+```python
+result1, result2 = garth.login(email, password, return_on_mfa=True)
+if result1 == "needs_mfa":  # MFA is required
+    mfa_code = "123456"  # Get this from your custom MFA flow
+    oauth1, oauth2 = garth.resume_login(result2, mfa_code)
+```
+
+### Configure
+
+#### Set domain for China
+
+```python
+garth.configure(domain="garmin.cn")
+```
+
+#### Proxy through Charles
+
+```python
+garth.configure(proxies={"https": "http://localhost:8888"}, ssl_verify=False)
+```
+
+### Attempt to resume session
+
+```python
+import garth
+from garth.exc import GarthException
+
+garth.resume("~/.garth")
+try:
+    garth.client.username
+except GarthException:
+    # Session is expired. You'll need to log in again
+```
+
+## Connect API
+
+### Daily details
+
+```python
+sleep = garth.connectapi(
+    f"/wellness-service/wellness/dailySleepData/{garth.client.username}",
+    params={"date": "2023-07-05", "nonSleepBufferMinutes": 60},
+)
+list(sleep.keys())
+```
+
+```json
+[
+    "dailySleepDTO",
+    "sleepMovement",
+    "remSleepData",
+    "sleepLevels",
+    "sleepRestlessMoments",
+    "restlessMomentsCount",
+    "wellnessSpO2SleepSummaryDTO",
+    "wellnessEpochSPO2DataDTOList",
+    "wellnessEpochRespirationDataDTOList",
+    "sleepStress"
+]
+```
+
+### Stats
+
+```python
+stress = garth.connectapi("/usersummary-service/stats/stress/weekly/2023-07-05/52")
+```
+
+```json
+{
+    "calendarDate": "2023-07-13",
+    "values": {
+        "highStressDuration": 2880,
+        "lowStressDuration": 10140,
+        "overallStressLevel": 33,
+        "restStressDuration": 30960,
+        "mediumStressDuration": 8760
+    }
+}
+```
+
+## Upload
+
+```python
+with open("12129115726_ACTIVITY.fit", "rb") as f:
+    uploaded = garth.client.upload(f)
+```
+
+Note: Garmin doesn't accept uploads of _structured_ FIT files as outlined in
+[this conversation](https://github.com/matin/garth/issues/27). FIT files
+generated from workouts are accepted without issues.
+
+```python
+{
+    'detailedImportResult': {
+        'uploadId': 212157427938,
+        'uploadUuid': {
+            'uuid': '6e56051d-1dd4-4f2c-b8ba-00a1a7d82eb3'
+        },
+        'owner': 2591602,
+        'fileSize': 5289,
+        'processingTime': 36,
+        'creationDate': '2023-09-29 01:58:19.113 GMT',
+        'ipAddress': None,
+        'fileName': '12129115726_ACTIVITY.fit',
+        'report': None,
+        'successes': [],
+        'failures': []
+    }
+}
+```
+
+## Stats resources
+
+### Stress
+
+Daily stress levels
+
+```python
+DailyStress.list("2023-07-23", 2)
+```
+
+```python
+[
+    DailyStress(
+        calendar_date=datetime.date(2023, 7, 22),
+        overall_stress_level=31,
+        rest_stress_duration=31980,
+        low_stress_duration=23820,
+        medium_stress_duration=7440,
+        high_stress_duration=1500
+    ),
+    DailyStress(
+        calendar_date=datetime.date(2023, 7, 23),
+        overall_stress_level=26,
+        rest_stress_duration=38220,
+        low_stress_duration=22500,
+        medium_stress_duration=2520,
+        high_stress_duration=300
+    )
+]
+```
+
+Weekly stress levels
+
+```python
+WeeklyStress.list("2023-07-23", 2)
+```
+
+```python
+[
+    WeeklyStress(calendar_date=datetime.date(2023, 7, 10), value=33),
+    WeeklyStress(calendar_date=datetime.date(2023, 7, 17), value=32)
+]
+```
+
+### Body Battery
+
+Daily Body Battery and stress data
+
+```python
+garth.DailyBodyBatteryStress.get("2023-07-20")
+```
+
+```python
+DailyBodyBatteryStress(
+    user_profile_pk=2591602,
+    calendar_date=datetime.date(2023, 7, 20),
+    start_timestamp_gmt=datetime.datetime(2023, 7, 20, 6, 0),
+    end_timestamp_gmt=datetime.datetime(2023, 7, 21, 5, 59, 59, 999000),
+    start_timestamp_local=datetime.datetime(2023, 7, 19, 23, 0),
+    end_timestamp_local=datetime.datetime(2023, 7, 20, 22, 59, 59, 999000),
+    max_stress_level=85,
+    avg_stress_level=25,
+    stress_chart_value_offset=0,
+    stress_chart_y_axis_origin=0,
+    stress_values_array=[
+        [1689811800000, 12], [1689812100000, 18], [1689812400000, 15],
+        [1689815700000, 45], [1689819300000, 85], [1689822900000, 35],
+        [1689826500000, 20], [1689830100000, 15], [1689833700000, 25],
+        [1689837300000, 30]
+    ],
+    body_battery_values_array=[
+        [1689811800000, 'charging', 45, 1.0], [1689812100000, 'charging', 48, 1.0],
+        [1689812400000, 'charging', 52, 1.0], [1689815700000, 'charging', 65, 1.0],
+        [1689819300000, 'draining', 85, 1.0], [1689822900000, 'draining', 75, 1.0],
+        [1689826500000, 'draining', 65, 1.0], [1689830100000, 'draining', 55, 1.0],
+        [1689833700000, 'draining', 45, 1.0], [1689837300000, 'draining', 35, 1.0],
+        [1689840900000, 'draining', 25, 1.0]
+    ]
+)
+
+# Access derived properties
+daily_bb = garth.DailyBodyBatteryStress.get("2023-07-20")
+daily_bb.current_body_battery  # 25 (last reading)
+daily_bb.max_body_battery      # 85
+daily_bb.min_body_battery      # 25
+daily_bb.body_battery_change   # -20 (45 -> 25)
+
+# Access structured readings
+for reading in daily_bb.body_battery_readings:
+    print(f"Level: {reading.level}, Status: {reading.status}")
+    # Level: 45, Status: charging
+    # Level: 48, Status: charging
+    # ... etc
+
+for reading in daily_bb.stress_readings:
+    print(f"Stress: {reading.stress_level}")
+    # Stress: 12
+    # Stress: 18
+    # ... etc
+```
+
+Body Battery events (sleep events)
+
+```python
+garth.BodyBatteryData.get("2023-07-20")
+```
+
+```python
+[
+    BodyBatteryData(
+        event=BodyBatteryEvent(
+            event_type='sleep',
+            event_start_time_gmt=datetime.datetime(2023, 7, 19, 21, 30),
+            timezone_offset=-25200000,
+            duration_in_milliseconds=28800000,
+            body_battery_impact=35,
+            feedback_type='good_sleep',
+            short_feedback='Good sleep restored your Body Battery'
+        ),
+        activity_name=None,
+        activity_type=None,
+        activity_id=None,
+        average_stress=15.5,
+        stress_values_array=[
+            [1689811800000, 12], [1689812100000, 18], [1689812400000, 15]
+        ],
+        body_battery_values_array=[
+            [1689811800000, 'charging', 45, 1.0],
+            [1689812100000, 'charging', 48, 1.0],
+            [1689812400000, 'charging', 52, 1.0],
+            [1689840600000, 'draining', 85, 1.0]
+        ]
+    )
+]
+
+# Access convenience properties on each event
+events = garth.BodyBatteryData.get("2023-07-20")
+event = events[0]
+event.current_level    # 85 (last reading)
+event.max_level        # 85
+event.min_level        # 45
+```
+
+### Hydration
+
+Daily hydration data
+
+```python
+garth.DailyHydration.list(period=2)
+```
+
+```python
+[
+    DailyHydration(
+        calendar_date=datetime.date(2024, 6, 29),
+        value_in_ml=1750.0,
+        goal_in_ml=2800.0
+    )
+]
+```
+
+### Steps
+
+Daily steps
+
+```python
+garth.DailySteps.list(period=2)
+```
+
+```python
+[
+    DailySteps(
+        calendar_date=datetime.date(2023, 7, 28),
+        total_steps=6510,
+        total_distance=5552,
+        step_goal=8090
+    ),
+    DailySteps(
+        calendar_date=datetime.date(2023, 7, 29),
+        total_steps=7218,
+        total_distance=6002,
+        step_goal=7940
+    )
+]
+```
+
+Weekly steps
+
+```python
+garth.WeeklySteps.list(period=2)
+```
+
+```python
+[
+    WeeklySteps(
+        calendar_date=datetime.date(2023, 7, 16),
+        total_steps=42339,
+        average_steps=6048.428571428572,
+        average_distance=5039.285714285715,
+        total_distance=35275.0,
+        wellness_data_days_count=7
+    ),
+    WeeklySteps(
+        calendar_date=datetime.date(2023, 7, 23),
+        total_steps=56420,
+        average_steps=8060.0,
+        average_distance=7198.142857142857,
+        total_distance=50387.0,
+        wellness_data_days_count=7
+    )
+]
+```
+
+### Intensity Minutes
+
+Daily intensity minutes
+
+```python
+garth.DailyIntensityMinutes.list(period=2)
+```
+
+```python
+[
+    DailyIntensityMinutes(
+        calendar_date=datetime.date(2023, 7, 28),
+        weekly_goal=150,
+        moderate_value=0,
+        vigorous_value=0
+    ),
+    DailyIntensityMinutes(
+        calendar_date=datetime.date(2023, 7, 29),
+        weekly_goal=150,
+        moderate_value=0,
+        vigorous_value=0
+    )
+]
+```
+
+Weekly intensity minutes
+
+```python
+garth.WeeklyIntensityMinutes.list(period=2)
+```
+
+```python
+[
+    WeeklyIntensityMinutes(
+        calendar_date=datetime.date(2023, 7, 17),
+        weekly_goal=150,
+        moderate_value=103,
+        vigorous_value=9
+    ),
+    WeeklyIntensityMinutes(
+        calendar_date=datetime.date(2023, 7, 24),
+        weekly_goal=150,
+        moderate_value=101,
+        vigorous_value=105
+    )
+]
+```
+
+### HRV
+
+Daily HRV
+
+```python
+garth.DailyHRV.list(period=2)
+```
+
+```python
+[
+    DailyHRV(
+        calendar_date=datetime.date(2023, 7, 28),
+        weekly_avg=39,
+        last_night_avg=36,
+        last_night_5_min_high=52,
+        baseline=HRVBaseline(
+            low_upper=36,
+            balanced_low=39,
+            balanced_upper=51,
+            marker_value=0.25
+        ),
+        status='BALANCED',
+        feedback_phrase='HRV_BALANCED_2',
+        create_time_stamp=datetime.datetime(2023, 7, 28, 12, 40, 16, 785000)
+    ),
+    DailyHRV(
+        calendar_date=datetime.date(2023, 7, 29),
+        weekly_avg=40,
+        last_night_avg=41,
+        last_night_5_min_high=76,
+        baseline=HRVBaseline(
+            low_upper=36,
+            balanced_low=39,
+            balanced_upper=51,
+            marker_value=0.2916565
+        ),
+        status='BALANCED',
+        feedback_phrase='HRV_BALANCED_8',
+        create_time_stamp=datetime.datetime(2023, 7, 29, 13, 45, 23, 479000)
+    )
+]
+```
+
+Detailed HRV data
+
+```python
+garth.HRVData.get("2023-07-20")
+```
+
+```python
+HRVData(
+    user_profile_pk=2591602,
+    hrv_summary=HRVSummary(
+        calendar_date=datetime.date(2023, 7, 20),
+        weekly_avg=39,
+        last_night_avg=42,
+        last_night_5_min_high=66,
+        baseline=Baseline(
+            low_upper=36,
+            balanced_low=39,
+            balanced_upper=52,
+            marker_value=0.25
+        ),
+        status='BALANCED',
+        feedback_phrase='HRV_BALANCED_7',
+        create_time_stamp=datetime.datetime(2023, 7, 20, 12, 14, 11, 898000)
+    ),
+    hrv_readings=[
+        HRVReading(
+            hrv_value=54,
+            reading_time_gmt=datetime.datetime(2023, 7, 20, 5, 29, 48),
+            reading_time_local=datetime.datetime(2023, 7, 19, 23, 29, 48)
+        ),
+        HRVReading(
+            hrv_value=56,
+            reading_time_gmt=datetime.datetime(2023, 7, 20, 5, 34, 48),
+            reading_time_local=datetime.datetime(2023, 7, 19, 23, 34, 48)
+        ),
+        # ... truncated for brevity
+        HRVReading(
+            hrv_value=38,
+            reading_time_gmt=datetime.datetime(2023, 7, 20, 12, 9, 48),
+            reading_time_local=datetime.datetime(2023, 7, 20, 6, 9, 48)
+        )
+    ],
+    start_timestamp_gmt=datetime.datetime(2023, 7, 20, 5, 25),
+    end_timestamp_gmt=datetime.datetime(2023, 7, 20, 12, 9, 48),
+    start_timestamp_local=datetime.datetime(2023, 7, 19, 23, 25),
+    end_timestamp_local=datetime.datetime(2023, 7, 20, 6, 9, 48),
+    sleep_start_timestamp_gmt=datetime.datetime(2023, 7, 20, 5, 25),
+    sleep_end_timestamp_gmt=datetime.datetime(2023, 7, 20, 12, 11),
+    sleep_start_timestamp_local=datetime.datetime(2023, 7, 19, 23, 25),
+    sleep_end_timestamp_local=datetime.datetime(2023, 7, 20, 6, 11)
+)
+```
+
+### Sleep
+
+Daily sleep quality
+
+```python
+garth.DailySleep.list("2023-07-23", 2)
+```
+
+```python
+[
+    DailySleep(calendar_date=datetime.date(2023, 7, 22), value=69),
+    DailySleep(calendar_date=datetime.date(2023, 7, 23), value=73)
+]
+```
+
+Detailed sleep data
+
+```python
+garth.SleepData.get("2023-07-20")
+```
+
+```python
+SleepData(
+    daily_sleep_dto=DailySleepDTO(
+        id=1689830700000,
+        user_profile_pk=2591602,
+        calendar_date=datetime.date(2023, 7, 20),
+        sleep_time_seconds=23700,
+        nap_time_seconds=0,
+        sleep_window_confirmed=True,
+        sleep_window_confirmation_type='enhanced_confirmed_final',
+        sleep_start_timestamp_gmt=datetime.datetime(2023, 7, 20, 5, 25, tzinfo=TzInfo(UTC)),
+        sleep_end_timestamp_gmt=datetime.datetime(2023, 7, 20, 12, 11, tzinfo=TzInfo(UTC)),
+        sleep_start_timestamp_local=datetime.datetime(2023, 7, 19, 23, 25, tzinfo=TzInfo(UTC)),
+        sleep_end_timestamp_local=datetime.datetime(2023, 7, 20, 6, 11, tzinfo=TzInfo(UTC)),
+        unmeasurable_sleep_seconds=0,
+        deep_sleep_seconds=9660,
+        light_sleep_seconds=12600,
+        rem_sleep_seconds=1440,
+        awake_sleep_seconds=660,
+        device_rem_capable=True,
+        retro=False,
+        sleep_from_device=True,
+        sleep_version=2,
+        awake_count=1,
+        sleep_scores=SleepScores(
+            total_duration=Score(
+                qualifier_key='FAIR',
+                optimal_start=28800.0,
+                optimal_end=28800.0,
+                value=None,
+                ideal_start_in_seconds=None,
+                deal_end_in_seconds=None
+            ),
+            stress=Score(
+                qualifier_key='FAIR',
+                optimal_start=0.0,
+                optimal_end=15.0,
+                value=None,
+                ideal_start_in_seconds=None,
+                ideal_end_in_seconds=None
+            ),
+            awake_count=Score(
+                qualifier_key='GOOD',
+                optimal_start=0.0,
+                optimal_end=1.0,
+                value=None,
+                ideal_start_in_seconds=None,
+                ideal_end_in_seconds=None
+            ),
+            overall=Score(
+                qualifier_key='FAIR',
+                optimal_start=None,
+                optimal_end=None,
+                value=68,
+                ideal_start_in_seconds=None,
+                ideal_end_in_seconds=None
+            ),
+            rem_percentage=Score(
+                qualifier_key='POOR',
+                optimal_start=21.0,
+                optimal_end=31.0,
+                value=6,
+                ideal_start_in_seconds=4977.0,
+                ideal_end_in_seconds=7347.0
+            ),
+            restlessness=Score(
+                qualifier_key='EXCELLENT',
+                optimal_start=0.0,
+                optimal_end=5.0,
+                value=None,
+                ideal_start_in_seconds=None,
+                ideal_end_in_seconds=None
+            ),
+            light_percentage=Score(
+                qualifier_key='EXCELLENT',
+                optimal_start=30.0,
+                optimal_end=64.0,
+                value=53,
+                ideal_start_in_seconds=7110.0,
+                ideal_end_in_seconds=15168.0
+            ),
+            deep_percentage=Score(
+                qualifier_key='EXCELLENT',
+                optimal_start=16.0,
+                optimal_end=33.0,
+                value=41,
+                ideal_start_in_seconds=3792.0,
+                ideal_end_in_seconds=7821.0
+            )
+        ),
+        auto_sleep_start_timestamp_gmt=None,
+        auto_sleep_end_timestamp_gmt=None,
+        sleep_quality_type_pk=None,
+        sleep_result_type_pk=None,
+        average_sp_o2_value=92.0,
+        lowest_sp_o2_value=87,
+        highest_sp_o2_value=100,
+        average_sp_o2_hr_sleep=53.0,
+        average_respiration_value=14.0,
+        lowest_respiration_value=12.0,
+        highest_respiration_value=16.0,
+        avg_sleep_stress=17.0,
+        age_group='ADULT',
+        sleep_score_feedback='NEGATIVE_NOT_ENOUGH_REM',
+        sleep_score_insight='NONE'
+    ),
+    sleep_movement=[
+        SleepMovement(
+            start_gmt=datetime.datetime(2023, 7, 20, 4, 25),
+            end_gmt=datetime.datetime(2023, 7, 20, 4, 26),
+            activity_level=5.688743692980419
+        ),
+        SleepMovement(
+            start_gmt=datetime.datetime(2023, 7, 20, 4, 26),
+            end_gmt=datetime.datetime(2023, 7, 20, 4, 27),
+            activity_level=5.318763075304898
+        ),
+        # ... truncated for brevity
+        SleepMovement(
+            start_gmt=datetime.datetime(2023, 7, 20, 13, 10),
+            end_gmt=datetime.datetime(2023, 7, 20, 13, 11),
+            activity_level=7.088729101943337
+        )
+    ]
+)
+```
+
+List sleep data over several nights.
+
+```python
+garth.SleepData.list("2023-07-20", 30)
+```
+
+### Weight
+
+Retrieve the latest weight measurement and body composition data for a given
+date.
+
+**Note**: Weight, weight delta, bone mass, and muscle mass values are measured
+in grams
+
+```python
+garth.WeightData.get("2025-06-01")
+```
+
+```python
+WeightData(
+    sample_pk=1749996902851,
+    calendar_date=datetime.date(2025, 6, 15),
+    weight=59720,
+    source_type='INDEX_SCALE',
+    weight_delta=200.00000000000284,
+    timestamp_gmt=1749996876000,
+    datetime_utc=datetime.datetime(2025, 6, 15, 14, 14, 36, tzinfo=TzInfo(UTC)),
+    datetime_local=datetime.datetime(
+        2025, 6, 15, 8, 14, 36,
+        tzinfo=datetime.timezone(datetime.timedelta(days=-1, seconds=64800))
+    ),
+    bmi=22.799999237060547,
+    body_fat=19.3,
+    body_water=58.9,
+    bone_mass=3539,
+    muscle_mass=26979,
+    physique_rating=None,
+    visceral_fat=None,
+    metabolic_age=None
+)
+```
+
+Get weight entries for a date range.
+
+```python
+garth.WeightData.list("2025-06-01", 30)
+```
+
+```python
+[
+    WeightData(
+        sample_pk=1749307692871,
+        calendar_date=datetime.date(2025, 6, 7),
+        weight=59189,
+        source_type='INDEX_SCALE',
+        weight_delta=500.0,
+        timestamp_gmt=1749307658000,
+        datetime_utc=datetime.datetime(2025, 6, 7, 14, 47, 38, tzinfo=TzInfo(UTC)),
+        datetime_local=datetime.datetime(
+            2025, 6, 7, 8, 47, 38,
+            tzinfo=datetime.timezone(datetime.timedelta(days=-1, seconds=64800))
+        ),
+        bmi=22.600000381469727,
+        body_fat=20.0,
+        body_water=58.4,
+        bone_mass=3450,
+        muscle_mass=26850,
+        physique_rating=None,
+        visceral_fat=None,
+        metabolic_age=None
+    ),
+    WeightData(
+        sample_pk=1749909217098,
+        calendar_date=datetime.date(2025, 6, 14),
+        weight=59130,
+        source_type='INDEX_SCALE',
+        weight_delta=-100.00000000000142,
+        timestamp_gmt=1749909180000,
+        datetime_utc=datetime.datetime(2025, 6, 14, 13, 53, tzinfo=TzInfo(UTC)),
+        datetime_local=datetime.datetime(
+            2025, 6, 14, 7, 53,
+            tzinfo=datetime.timezone(datetime.timedelta(days=-1, seconds=64800))
+        ),
+        bmi=22.5,
+        body_fat=20.3,
+        body_water=58.2,
+        bone_mass=3430,
+        muscle_mass=26840,
+        physique_rating=None,
+        visceral_fat=None,
+        metabolic_age=None
+    ),
+    WeightData(
+        sample_pk=1749948744411,
+        calendar_date=datetime.date(2025, 6, 14),
+        weight=59500,
+        source_type='MANUAL',
+        weight_delta=399.9999999999986,
+        timestamp_gmt=1749948725175,
+        datetime_utc=datetime.datetime(
+            2025, 6, 15, 0, 52, 5, 175000, tzinfo=TzInfo(UTC)
+        ),
+        datetime_local=datetime.datetime(
+            2025, 6, 14, 18, 52, 5, 175000,
+            tzinfo=datetime.timezone(datetime.timedelta(days=-1, seconds=64800))
+        ),
+        bmi=None,
+        body_fat=None,
+        body_water=None,
+        bone_mass=None,
+        muscle_mass=None,
+        physique_rating=None,
+        visceral_fat=None,
+        metabolic_age=None
+    ),
+    WeightData(
+        sample_pk=1749996902851,
+        calendar_date=datetime.date(2025, 6, 15),
+        weight=59720,
+        source_type='INDEX_SCALE',
+        weight_delta=200.00000000000284,
+        timestamp_gmt=1749996876000,
+        datetime_utc=datetime.datetime(2025, 6, 15, 14, 14, 36, tzinfo=TzInfo(UTC)),
+        datetime_local=datetime.datetime(
+            2025, 6, 15, 8, 14, 36,
+            tzinfo=datetime.timezone(datetime.timedelta(days=-1, seconds=64800))
+        ),
+        bmi=22.799999237060547,
+        body_fat=19.3,
+        body_water=58.9,
+        bone_mass=3539,
+        muscle_mass=26979,
+        physique_rating=None,
+        visceral_fat=None,
+        metabolic_age=None
+    )
+]
+```
+
+## User
+
+### UserProfile
+
+```python
+garth.UserProfile.get()
+```
+
+```python
+UserProfile(
+    id=3154645,
+    profile_id=2591602,
+    garmin_guid="0690cc1d-d23d-4412-b027-80fd4ed1c0f6",
+    display_name="mtamizi",
+    full_name="Matin Tamizi",
+    user_name="mtamizi",
+    profile_image_uuid="73240e81-6e4d-43fc-8af8-c8f6c51b3b8f",
+    profile_image_url_large=(
+        "https://s3.amazonaws.com/garmin-connect-prod/profile_images/"
+        "73240e81-6e4d-43fc-8af8-c8f6c51b3b8f-2591602.png"
+    ),
+    profile_image_url_medium=(
+        "https://s3.amazonaws.com/garmin-connect-prod/profile_images/"
+        "685a19e9-a7be-4a11-9bf9-faca0c5d1f1a-2591602.png"
+    ),
+    profile_image_url_small=(
+        "https://s3.amazonaws.com/garmin-connect-prod/profile_images/"
+        "6302f021-0ec7-4dc9-b0c3-d5a19bc5a08c-2591602.png"
+    ),
+    location="Ciudad de México, CDMX",
+    facebook_url=None,
+    twitter_url=None,
+    personal_website=None,
+    motivation=None,
+    bio=None,
+    primary_activity=None,
+    favorite_activity_types=[],
+    running_training_speed=0.0,
+    cycling_training_speed=0.0,
+    favorite_cycling_activity_types=[],
+    cycling_classification=None,
+    cycling_max_avg_power=0.0,
+    swimming_training_speed=0.0,
+    profile_visibility="private",
+    activity_start_visibility="private",
+    activity_map_visibility="public",
+    course_visibility="public",
+    activity_heart_rate_visibility="public",
+    activity_power_visibility="public",
+    badge_visibility="private",
+    show_age=False,
+    show_weight=False,
+    show_height=False,
+    show_weight_class=False,
+    show_age_range=False,
+    show_gender=False,
+    show_activity_class=False,
+    show_vo_2_max=False,
+    show_personal_records=False,
+    show_last_12_months=False,
+    show_lifetime_totals=False,
+    show_upcoming_events=False,
+    show_recent_favorites=False,
+    show_recent_device=False,
+    show_recent_gear=False,
+    show_badges=True,
+    other_activity=None,
+    other_primary_activity=None,
+    other_motivation=None,
+    user_roles=[
+        "SCOPE_ATP_READ",
+        "SCOPE_ATP_WRITE",
+        "SCOPE_COMMUNITY_COURSE_READ",
+        "SCOPE_COMMUNITY_COURSE_WRITE",
+        "SCOPE_CONNECT_READ",
+        "SCOPE_CONNECT_WRITE",
+        "SCOPE_DT_CLIENT_ANALYTICS_WRITE",
+        "SCOPE_GARMINPAY_READ",
+        "SCOPE_GARMINPAY_WRITE",
+        "SCOPE_GCOFFER_READ",
+        "SCOPE_GCOFFER_WRITE",
+        "SCOPE_GHS_SAMD",
+        "SCOPE_GHS_UPLOAD",
+        "SCOPE_GOLF_API_READ",
+        "SCOPE_GOLF_API_WRITE",
+        "SCOPE_INSIGHTS_READ",
+        "SCOPE_INSIGHTS_WRITE",
+        "SCOPE_PRODUCT_SEARCH_READ",
+        "ROLE_CONNECTUSER",
+        "ROLE_FITNESS_USER",
+        "ROLE_WELLNESS_USER",
+        "ROLE_OUTDOOR_USER",
+        "ROLE_CONNECT_2_USER",
+        "ROLE_TACX_APP_USER",
+    ],
+    name_approved=True,
+    user_profile_full_name="Matin Tamizi",
+    make_golf_scorecards_private=True,
+    allow_golf_live_scoring=False,
+    allow_golf_scoring_by_connections=True,
+    user_level=3,
+    user_point=118,
+    level_update_date="2020-12-12T15:20:38.0",
+    level_is_viewed=False,
+    level_point_threshold=140,
+    user_point_offset=0,
+    user_pro=False,
+)
+```
+
+### UserSettings
+
+```python
+garth.UserSettings.get()
+```
+
+```python
+UserSettings(
+    id=2591602,
+    user_data=UserData(
+        gender="MALE",
+        weight=83000.0,
+        height=182.0,
+        time_format="time_twenty_four_hr",
+        birth_date=datetime.date(1984, 10, 17),
+        measurement_system="metric",
+        activity_level=None,
+        handedness="RIGHT",
+        power_format=PowerFormat(
+            format_id=30,
+            format_key="watt",
+            min_fraction=0,
+            max_fraction=0,
+            grouping_used=True,
+            display_format=None,
+        ),
+        heart_rate_format=PowerFormat(
+            format_id=21,
+            format_key="bpm",
+            min_fraction=0,
+            max_fraction=0,
+            grouping_used=False,
+            display_format=None,
+        ),
+        first_day_of_week=FirstDayOfWeek(
+            day_id=2,
+            day_name="sunday",
+            sort_order=2,
+            is_possible_first_day=True,
+        ),
+        vo_2_max_running=45.0,
+        vo_2_max_cycling=None,
+        lactate_threshold_speed=0.34722125000000004,
+        lactate_threshold_heart_rate=None,
+        dive_number=None,
+        intensity_minutes_calc_method="AUTO",
+        moderate_intensity_minutes_hr_zone=3,
+        vigorous_intensity_minutes_hr_zone=4,
+        hydration_measurement_unit="milliliter",
+        hydration_containers=[],
+        hydration_auto_goal_enabled=True,
+        firstbeat_max_stress_score=None,
+        firstbeat_cycling_lt_timestamp=None,
+        firstbeat_running_lt_timestamp=1044719868,
+        threshold_heart_rate_auto_detected=True,
+        ftp_auto_detected=None,
+        training_status_paused_date=None,
+        weather_location=None,
+        golf_distance_unit="statute_us",
+        golf_elevation_unit=None,
+        golf_speed_unit=None,
+        external_bottom_time=None,
+    ),
+    user_sleep=UserSleep(
+        sleep_time=80400,
+        default_sleep_time=False,
+        wake_time=24000,
+        default_wake_time=False,
+    ),
+    connect_date=None,
+    source_type=None,
+)
+```
+
+## Star History
+
+<a href="https://www.star-history.com/#matin/garth&Date">
+    <picture>
+        <source
+            media="(prefers-color-scheme: dark)"
+            srcset="https://api.star-history.com/svg?repos=matin/garth&type=Date&theme=dark"
+        />
+        <source
+            media="(prefers-color-scheme: light)"
+            srcset="https://api.star-history.com/svg?repos=matin/garth&type=Date"
+        />
+    <img
+        alt="Star History Chart"
+        src="https://api.star-history.com/svg?repos=matin/garth&type=Date" />
+    </picture>
+</a>
+
+
+================================================
+FILE: .devcontainer/noop.txt
+================================================
+This file copied into the container along with environment.yml* from the parent
+folder. This file is included to prevents the Dockerfile COPY instruction from
+failing if no environment.yml is found.
+
+
+================================================
+FILE: src/garth/__init__.py
+================================================
+from .data import (
+    BodyBatteryData,
+    DailyBodyBatteryStress,
+    HRVData,
+    SleepData,
+    WeightData,
+)
+from .http import Client, client
+from .stats import (
+    DailyHRV,
+    DailyHydration,
+    DailyIntensityMinutes,
+    DailySleep,
+    DailySteps,
+    DailyStress,
+    WeeklyIntensityMinutes,
+    WeeklySteps,
+    WeeklyStress,
+)
+from .users import UserProfile, UserSettings
+from .version import __version__
+
+
+__all__ = [
+    "BodyBatteryData",
+    "Client",
+    "DailyBodyBatteryStress",
+    "DailyHRV",
+    "DailyHydration",
+    "DailyIntensityMinutes",
+    "DailySleep",
+    "DailySteps",
+    "DailyStress",
+    "HRVData",
+    "SleepData",
+    "WeightData",
+    "UserProfile",
+    "UserSettings",
+    "WeeklyIntensityMinutes",
+    "WeeklySteps",
+    "WeeklyStress",
+    "__version__",
+    "client",
+    "configure",
+    "connectapi",
+    "download",
+    "login",
+    "resume",
+    "save",
+    "upload",
+]
+
+configure = client.configure
+connectapi = client.connectapi
+download = client.download
+login = client.login
+resume = client.load
+save = client.dump
+upload = client.upload
+
+
+================================================
+FILE: src/garth/auth_tokens.py
+================================================
+import time
+from datetime import datetime
+
+from pydantic.dataclasses import dataclass
+
+
+@dataclass
+class OAuth1Token:
+    oauth_token: str
+    oauth_token_secret: str
+    mfa_token: str | None = None
+    mfa_expiration_timestamp: datetime | None = None
+    domain: str | None = None
+
+
+@dataclass
+class OAuth2Token:
+    scope: str
+    jti: str
+    token_type: str
+    access_token: str
+    refresh_token: str
+    expires_in: int
+    expires_at: int
+    refresh_token_expires_in: int
+    refresh_token_expires_at: int
+
+    @property
+    def expired(self):
+        return self.expires_at < time.time()
+
+    @property
+    def refresh_expired(self):
+        return self.refresh_token_expires_at < time.time()
+
+    def __str__(self):
+        return f"{self.token_type.title()} {self.access_token}"
+
+
+================================================
+FILE: src/garth/cli.py
+================================================
+import argparse
+import getpass
+
+import garth
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="garth")
+    parser.add_argument(
+        "--domain",
+        "-d",
+        default="garmin.com",
+        help=(
+            "Domain for Garmin Connect (default: garmin.com). "
+            "Use garmin.cn for China."
+        ),
+    )
+    subparsers = parser.add_subparsers(dest="command")
+    subparsers.add_parser(
+        "login", help="Authenticate with Garmin Connect and print token"
+    )
+
+    args = parser.parse_args()
+    garth.configure(domain=args.domain)
+
+    match args.command:
+        case "login":
+            email = input("Email: ")
+            password = getpass.getpass("Password: ")
+            garth.login(email, password)
+            token = garth.client.dumps()
+            print(token)
+        case _:
+            parser.print_help()
+
+
+================================================
+FILE: src/garth/data/__init__.py
+================================================
+__all__ = [
+    "BodyBatteryData",
+    "BodyBatteryEvent",
+    "BodyBatteryReading",
+    "DailyBodyBatteryStress",
+    "HRVData",
+    "SleepData",
+    "StressReading",
+    "WeightData",
+]
+
+from .body_battery import (
+    BodyBatteryData,
+    BodyBatteryEvent,
+    BodyBatteryReading,
+    DailyBodyBatteryStress,
+    StressReading,
+)
+from .hrv import HRVData
+from .sleep import SleepData
+from .weight import WeightData
+
+
+================================================
+FILE: src/garth/data/_base.py
+================================================
+from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date
+from itertools import chain
+
+from typing_extensions import Self
+
+from .. import http
+from ..utils import date_range, format_end_date
+
+
+MAX_WORKERS = 10
+
+
+class Data(ABC):
+    @classmethod
+    @abstractmethod
+    def get(
+        cls, day: date | str, *, client: http.Client | None = None
+    ) -> Self | list[Self] | None: ...
+
+    @classmethod
+    def list(
+        cls,
+        end: date | str | None = None,
+        days: int = 1,
+        *,
+        client: http.Client | None = None,
+        max_workers: int = MAX_WORKERS,
+    ) -> list[Self]:
+        client = client or http.client
+        end = format_end_date(end)
+
+        def fetch_date(date_):
+            if day := cls.get(date_, client=client):
+                return day
+
+        dates = date_range(end, days)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            data = list(executor.map(fetch_date, dates))
+            data = [day for day in data if day is not None]
+
+        return list(
+            chain.from_iterable(
+                day if isinstance(day, list) else [day] for day in data
+            )
+        )
+
+
+================================================
+FILE: src/garth/data/body_battery/__init__.py
+================================================
+__all__ = [
+    "BodyBatteryData",
+    "BodyBatteryEvent",
+    "BodyBatteryReading",
+    "DailyBodyBatteryStress",
+    "StressReading",
+]
+
+from .daily_stress import DailyBodyBatteryStress
+from .events import BodyBatteryData, BodyBatteryEvent
+from .readings import BodyBatteryReading, StressReading
+
+
+================================================
+FILE: src/garth/data/body_battery/daily_stress.py
+================================================
+from datetime import date, datetime
+from functools import cached_property
+from typing import Any
+
+from pydantic.dataclasses import dataclass
+from typing_extensions import Self
+
+from ... import http
+from ...utils import camel_to_snake_dict, format_end_date
+from .._base import Data
+from .readings import (
+    BodyBatteryReading,
+    StressReading,
+    parse_body_battery_readings,
+    parse_stress_readings,
+)
+
+
+@dataclass
+class DailyBodyBatteryStress(Data):
+    """Complete daily Body Battery and stress data."""
+
+    user_profile_pk: int
+    calendar_date: date
+    start_timestamp_gmt: datetime
+    end_timestamp_gmt: datetime
+    start_timestamp_local: datetime
+    end_timestamp_local: datetime
+    max_stress_level: int
+    avg_stress_level: int
+    stress_chart_value_offset: int
+    stress_chart_y_axis_origin: int
+    stress_values_array: list[list[int]]
+    body_battery_values_array: list[list[Any]]
+
+    @cached_property
+    def body_battery_readings(self) -> list[BodyBatteryReading]:
+        """Convert body battery values array to structured readings."""
+        return parse_body_battery_readings(self.body_battery_values_array)
+
+    @property
+    def stress_readings(self) -> list[StressReading]:
+        """Convert stress values array to structured readings."""
+        return parse_stress_readings(self.stress_values_array)
+
+    @property
+    def current_body_battery(self) -> int | None:
+        """Get the latest Body Battery level."""
+        readings = self.body_battery_readings
+        return readings[-1].level if readings else None
+
+    @property
+    def max_body_battery(self) -> int | None:
+        """Get the maximum Body Battery level for the day."""
+        readings = self.body_battery_readings
+        return max(reading.level for reading in readings) if readings else None
+
+    @property
+    def min_body_battery(self) -> int | None:
+        """Get the minimum Body Battery level for the day."""
+        readings = self.body_battery_readings
+        return min(reading.level for reading in readings) if readings else None
+
+    @property
+    def body_battery_change(self) -> int | None:
+        """Calculate the Body Battery change for the day."""
+        readings = self.body_battery_readings
+        if not readings or len(readings) < 2:
+            return None
+        return readings[-1].level - readings[0].level
+
+    @classmethod
+    def get(
+        cls,
+        day: date | str | None = None,
+        *,
+        client: http.Client | None = None,
+    ) -> Self | None:
+        """Get complete Body Battery and stress data for a specific date."""
+        client = client or http.client
+        date_str = format_end_date(day)
+
+        path = f"/wellness-service/wellness/dailyStress/{date_str}"
+        response = client.connectapi(path)
+
+        if not isinstance(response, dict):
+            return None
+
+        snake_response = camel_to_snake_dict(response)
+        return cls(**snake_response)
+
+
+================================================
+FILE: src/garth/data/body_battery/events.py
+================================================
+import logging
+from datetime import date, datetime
+from typing import Any
+
+from pydantic.dataclasses import dataclass
+from typing_extensions import Self
+
+from ... import http
+from ...utils import format_end_date
+from .._base import Data
+from .readings import BodyBatteryReading, parse_body_battery_readings
+
+
+MAX_WORKERS = 10
+
+
+@dataclass
+class BodyBatteryEvent:
+    """Body Battery event data."""
+
+    event_type: str
+    event_start_time_gmt: datetime
+    timezone_offset: int
+    duration_in_milliseconds: int
+    body_battery_impact: int
+    feedback_type: str
+    short_feedback: str
+
+
+@dataclass
+class BodyBatteryData(Data):
+    """Legacy Body Battery events data (sleep events only)."""
+
+    event: BodyBatteryEvent | None = None
+    activity_name: str | None = None
+    activity_type: str | None = None
+    activity_id: str | None = None
+    average_stress: float | None = None
+    stress_values_array: list[list[int]] | None = None
+    body_battery_values_array: list[list[Any]] | None = None
+
+    @property
+    def body_battery_readings(self) -> list[BodyBatteryReading]:
+        """Convert body battery values array to structured readings."""
+        return parse_body_battery_readings(self.body_battery_values_array)
+
+    @property
+    def current_level(self) -> int | None:
+        """Get the latest Body Battery level."""
+        readings = self.body_battery_readings
+        return readings[-1].level if readings else None
+
+    @property
+    def max_level(self) -> int | None:
+        """Get the maximum Body Battery level for the day."""
+        readings = self.body_battery_readings
+        return max(reading.level for reading in readings) if readings else None
+
+    @property
+    def min_level(self) -> int | None:
+        """Get the minimum Body Battery level for the day."""
+        readings = self.body_battery_readings
+        return min(reading.level for reading in readings) if readings else None
+
+    @classmethod
+    def get(
+        cls,
+        date_str: str | date | None = None,
+        *,
+        client: http.Client | None = None,
+    ) -> list[Self]:
+        """Get Body Battery events for a specific date."""
+        client = client or http.client
+        date_str = format_end_date(date_str)
+
+        path = f"/wellness-service/wellness/bodyBattery/events/{date_str}"
+        try:
+            response = client.connectapi(path)
+        except Exception as e:
+            logging.warning(f"Failed to fetch Body Battery events: {e}")
+            return []
+
+        if not isinstance(response, list):
+            return []
+
+        events = []
+        for item in response:
+            try:
+                # Parse event data with validation
+                event_data = item.get("event")
+
+                # Validate event_data exists before accessing properties
+                if event_data is None:
+                    logging.warning(f"Missing event data in item: {item}")
+                    event = None
+                else:
+                    # Validate and parse datetime with explicit error handling
+                    event_start_time_str = event_data.get("eventStartTimeGmt")
+                    if not event_start_time_str:
+                        logging.error(
+                            f"Missing eventStartTimeGmt in event data: "
+                            f"{event_data}"
+                        )
+                        raise ValueError(
+                            "eventStartTimeGmt is required but missing"
+                        )
+
+                    try:
+                        event_start_time_gmt = datetime.fromisoformat(
+                            event_start_time_str.replace("Z", "+00:00")
+                        )
+                    except (ValueError, AttributeError) as e:
+                        logging.error(
+                            f"Invalid datetime format "
+                            f"'{event_start_time_str}': {e}"
+                        )
+                        raise ValueError(
+                            f"Invalid eventStartTimeGmt format: "
+                            f"{event_start_time_str}"
+                        ) from e
+
+                    # Validate numeric fields
+                    timezone_offset = event_data.get("timezoneOffset", 0)
+                    if not isinstance(timezone_offset, (int, float)):
+                        logging.warning(
+                            f"Invalid timezone_offset type: "
+                            f"{type(timezone_offset)}, using 0"
+                        )
+                        timezone_offset = 0
+
+                    duration_ms = event_data.get("durationInMilliseconds", 0)
+                    if not isinstance(duration_ms, (int, float)):
+                        logging.warning(
+                            f"Invalid durationInMilliseconds type: "
+                            f"{type(duration_ms)}, using 0"
+                        )
+                        duration_ms = 0
+
+                    battery_impact = event_data.get("bodyBatteryImpact", 0)
+                    if not isinstance(battery_impact, (int, float)):
+                        logging.warning(
+                            f"Invalid bodyBatteryImpact type: "
+                            f"{type(battery_impact)}, using 0"
+                        )
+                        battery_impact = 0
+
+                    event = BodyBatteryEvent(
+                        event_type=event_data.get("eventType", ""),
+                        event_start_time_gmt=event_start_time_gmt,
+                        timezone_offset=int(timezone_offset),
+                        duration_in_milliseconds=int(duration_ms),
+                        body_battery_impact=int(battery_impact),
+                        feedback_type=event_data.get("feedbackType", ""),
+                        short_feedback=event_data.get("shortFeedback", ""),
+                    )
+
+                # Validate data arrays
+                stress_values = item.get("stressValuesArray")
+                if stress_values is not None and not isinstance(
+                    stress_values, list
+                ):
+                    logging.warning(
+                        f"Invalid stressValuesArray type: "
+                        f"{type(stress_values)}, using None"
+                    )
+                    stress_values = None
+
+                battery_values = item.get("bodyBatteryValuesArray")
+                if battery_values is not None and not isinstance(
+                    battery_values, list
+                ):
+                    logging.warning(
+                        f"Invalid bodyBatteryValuesArray type: "
+                        f"{type(battery_values)}, using None"
+                    )
+                    battery_values = None
+
+                # Validate average_stress
+                avg_stress = item.get("averageStress")
+                if avg_stress is not None and not isinstance(
+                    avg_stress, (int, float)
+                ):
+                    logging.warning(
+                        f"Invalid averageStress type: "
+                        f"{type(avg_stress)}, using None"
+                    )
+                    avg_stress = None
+
+                events.append(
+                    cls(
+                        event=event,
+                        activity_name=item.get("activityName"),
+                        activity_type=item.get("activityType"),
+                        activity_id=item.get("activityId"),
+                        average_stress=avg_stress,
+                        stress_values_array=stress_values,
+                        body_battery_values_array=battery_values,
+                    )
+                )
+
+            except ValueError as e:
+                # Re-raise validation errors with context
+                logging.error(
+                    f"Data validation error for Body Battery event item "
+                    f"{item}: {e}"
+                )
+                continue
+            except Exception as e:
+                # Log unexpected errors with full context
+                logging.error(
+                    f"Unexpected error parsing Body Battery event item "
+                    f"{item}: {e}",
+                    exc_info=True,
+                )
+                continue
+
+        # Log summary of data quality issues
+        total_items = len(response)
+        parsed_events = len(events)
+        if parsed_events < total_items:
+            skipped = total_items - parsed_events
+            logging.info(
+                f"Body Battery events parsing: {parsed_events}/{total_items} "
+                f"successful, {skipped} skipped due to data issues"
+            )
+
+        return events
+
+
+================================================
+FILE: src/garth/data/body_battery/readings.py
+================================================
+from typing import Any
+
+from pydantic.dataclasses import dataclass
+
+
+@dataclass
+class BodyBatteryReading:
+    """Individual Body Battery reading."""
+
+    timestamp: int
+    status: str
+    level: int
+    version: float
+
+
+@dataclass
+class StressReading:
+    """Individual stress reading."""
+
+    timestamp: int
+    stress_level: int
+
+
+def parse_body_battery_readings(
+    body_battery_values_array: list[list[Any]] | None,
+) -> list[BodyBatteryReading]:
+    """Convert body battery values array to structured readings."""
+    readings = []
+    for values in body_battery_values_array or []:
+        # Each reading requires 4 values: timestamp, status, level, version
+        if len(values) >= 4:
+            readings.append(
+                BodyBatteryReading(
+                    timestamp=values[0],
+                    status=values[1],
+                    level=values[2],
+                    version=values[3],
+                )
+            )
+    # Sort readings by timestamp to ensure chronological order
+    return sorted(readings, key=lambda reading: reading.timestamp)
+
+
+def parse_stress_readings(
+    stress_values_array: list[list[int]] | None,
+) -> list[StressReading]:
+    """Convert stress values array to structured readings."""
+    readings = []
+    for values in stress_values_array or []:
+        # Each reading requires 2 values: timestamp, stress_level
+        if len(values) >= 2:
+            readings.append(
+                StressReading(timestamp=values[0], stress_level=values[1])
+            )
+    # Sort readings by timestamp to ensure chronological order
+    return sorted(readings, key=lambda reading: reading.timestamp)
+
+
+================================================
+FILE: src/garth/data/hrv.py
+================================================
+from datetime import date, datetime
+
+from pydantic.dataclasses import dataclass
+from typing_extensions import Self
+
+from .. import http
+from ..utils import camel_to_snake_dict
+from ._base import Data
+
+
+@dataclass
+class Baseline:
+    low_upper: int
+    balanced_low: int
+    balanced_upper: int
+    marker_value: float
+
+
+@dataclass
+class HRVSummary:
+    calendar_date: date
+    weekly_avg: int
+    last_night_avg: int | None
+    last_night_5_min_high: int
+    baseline: Baseline
+    status: str
+    feedback_phrase: str
+    create_time_stamp: datetime
+
+
+@dataclass
+class HRVReading:
+    hrv_value: int
+    reading_time_gmt: datetime
+    reading_time_local: datetime
+
+
+@dataclass
+class HRVData(Data):
+    user_profile_pk: int
+    hrv_summary: HRVSummary
+    hrv_readings: list[HRVReading]
+    start_timestamp_gmt: datetime
+    end_timestamp_gmt: datetime
+    start_timestamp_local: datetime
+    end_timestamp_local: datetime
+    sleep_start_timestamp_gmt: datetime
+    sleep_end_timestamp_gmt: datetime
+    sleep_start_timestamp_local: datetime
+    sleep_end_timestamp_local: datetime
+
+    @classmethod
+    def get(
+        cls, day: date | str, *, client: http.Client | None = None
+    ) -> Self | None:
+        client = client or http.client
+        path = f"/hrv-service/hrv/{day}"
+        hrv_data = client.connectapi(path)
+        if not hrv_data:
+            return None
+        hrv_data = camel_to_snake_dict(hrv_data)
+        assert isinstance(hrv_data, dict)
+        return cls(**hrv_data)
+
+    @classmethod
+    def list(cls, *args, **kwargs) -> list[Self]:
+        data = super().list(*args, **kwargs)
+        return sorted(data, key=lambda d: d.hrv_summary.calendar_date)
+
+
+================================================
+FILE: src/garth/data/sleep.py
+================================================
+from datetime import date, datetime
+from typing import Optional, Union
+
+from pydantic.dataclasses import dataclass
+from typing_extensions import Self
+
+from .. import http
+from ..utils import camel_to_snake_dict, get_localized_datetime
+from ._base import Data
+
+
+@dataclass
+class Score:
+    qualifier_key: str
+    optimal_start: Optional[float] = None
+    optimal_end: Optional[float] = None
+    value: Optional[int] = None
+    ideal_start_in_seconds: Optional[float] = None
+    ideal_end_in_seconds: Optional[float] = None
+
+
+@dataclass
+class SleepScores:
+    total_duration: Score
+    stress: Score
+    awake_count: Score
+    overall: Score
+    rem_percentage: Score
+    restlessness: Score
+    light_percentage: Score
+    deep_percentage: Score
+
+
+@dataclass
+class DailySleepDTO:
+    id: int
+    user_profile_pk: int
+    calendar_date: date
+    sleep_time_seconds: int
+    nap_time_seconds: int
+    sleep_window_confirmed: bool
+    sleep_window_confirmation_type: str
+    sleep_start_timestamp_gmt: int
+    sleep_end_timestamp_gmt: int
+    sleep_start_timestamp_local: int
+    sleep_end_timestamp_local: int
+    device_rem_capable: bool
+    retro: bool
+    unmeasurable_sleep_seconds: Optional[int] = None
+    deep_sleep_seconds: Optional[int] = None
+    light_sleep_seconds: Optional[int] = None
+    rem_sleep_seconds: Optional[int] = None
+    awake_sleep_seconds: Optional[int] = None
+    sleep_from_device: Optional[bool] = None
+    sleep_version: Optional[int] = None
+    awake_count: Optional[int] = None
+    sleep_scores: Optional[SleepScores] = None
+    auto_sleep_start_timestamp_gmt: Optional[int] = None
+    auto_sleep_end_timestamp_gmt: Optional[int] = None
+    sleep_quality_type_pk: Optional[int] = None
+    sleep_result_type_pk: Optional[int] = None
+    average_sp_o2_value: Optional[float] = None
+    lowest_sp_o2_value: Optional[int] = None
+    highest_sp_o2_value: Optional[int] = None
+    average_sp_o2_hr_sleep: Optional[float] = None
+    average_respiration_value: Optional[float] = None
+    lowest_respiration_value: Optional[float] = None
+    highest_respiration_value: Optional[float] = None
+    avg_sleep_stress: Optional[float] = None
+    age_group: Optional[str] = None
+    sleep_score_feedback: Optional[str] = None
+    sleep_score_insight: Optional[str] = None
+
+    @property
+    def sleep_start(self) -> datetime:
+        return get_localized_datetime(
+            self.sleep_start_timestamp_gmt, self.sleep_start_timestamp_local
+        )
+
+    @property
+    def sleep_end(self) -> datetime:
+        return get_localized_datetime(
+            self.sleep_end_timestamp_gmt, self.sleep_end_timestamp_local
+        )
+
+
+@dataclass
+class SleepMovement:
+    start_gmt: datetime
+    end_gmt: datetime
+    activity_level: float
+
+
+@dataclass
+class SleepData(Data):
+    daily_sleep_dto: DailySleepDTO
+    sleep_movement: Optional[list[SleepMovement]] = None
+
+    @classmethod
+    def get(
+        cls,
+        day: Union[date, str],
+        *,
+        buffer_minutes: int = 60,
+        client: Optional[http.Client] = None,
+    ) -> Optional[Self]:
+        client = client or http.client
+        path = (
+            f"/wellness-service/wellness/dailySleepData/{client.username}?"
+            f"nonSleepBufferMinutes={buffer_minutes}&date={day}"
+        )
+        sleep_data = client.connectapi(path)
+        assert sleep_data
+        sleep_data = camel_to_snake_dict(sleep_data)
+        assert isinstance(sleep_data, dict)
+        return (
+            cls(**sleep_data) if sleep_data["daily_sleep_dto"]["id"] else None
+        )
+
+    @classmethod
+    def list(cls, *args, **kwargs) -> list[Self]:
+        data = super().list(*args, **kwargs)
+        return sorted(data, key=lambda x: x.daily_sleep_dto.calendar_date)
+
+
+================================================
+FILE: src/garth/data/weight.py
+================================================
+from datetime import date, datetime, timedelta
+from itertools import chain
+
+from pydantic import Field, ValidationInfo, field_validator
+from pydantic.dataclasses import dataclass
+from typing_extensions import Self
+
+from .. import http
+from ..utils import (
+    camel_to_snake_dict,
+    format_end_date,
+    get_localized_datetime,
+)
+from ._base import MAX_WORKERS, Data
+
+
+@dataclass
+class WeightData(Data):
+    sample_pk: int
+    calendar_date: date
+    weight: int
+    source_type: str
+    weight_delta: float
+    timestamp_gmt: int
+    datetime_utc: datetime = Field(..., alias="timestamp_gmt")
+    datetime_local: datetime = Field(..., alias="date")
+    bmi: float | None = None
+    body_fat: float | None = None
+    body_water: float | None = None
+    bone_mass: int | None = None
+    muscle_mass: int | None = None
+    physique_rating: float | None = None
+    visceral_fat: float | None = None
+    metabolic_age: int | None = None
+
+    @field_validator("datetime_local", mode="before")
+    @classmethod
+    def to_localized_datetime(cls, v: int, info: ValidationInfo) -> datetime:
+        return get_localized_datetime(info.data["timestamp_gmt"], v)
+
+    @classmethod
+    def get(
+        cls, day: date | str, *, client: http.Client | None = None
+    ) -> Self | None:
+        client = client or http.client
+        path = f"/weight-service/weight/dayview/{day}"
+        data = client.connectapi(path)
+        day_weight_list = data["dateWeightList"] if data else []
+
+        if not day_weight_list:
+            return None
+
+        # Get first (most recent) weight entry for the day
+        weight_data = camel_to_snake_dict(day_weight_list[0])
+        return cls(**weight_data)
+
+    @classmethod
+    def list(
+        cls,
+        end: date | str | None = None,
+        days: int = 1,
+        *,
+        client: http.Client | None = None,
+        max_workers: int = MAX_WORKERS,
+    ) -> list[Self]:
+        client = client or http.client
+        end = format_end_date(end)
+        start = end - timedelta(days=days - 1)
+
+        data = client.connectapi(
+            f"/weight-service/weight/range/{start}/{end}?includeAll=true"
+        )
+        weight_summaries = data["dailyWeightSummaries"] if data else []
+        weight_metrics = chain.from_iterable(
+            summary["allWeightMetrics"] for summary in weight_summaries
+        )
+        weight_data_list = (
+            cls(**camel_to_snake_dict(weight_data))
+            for weight_data in weight_metrics
+        )
+        return sorted(weight_data_list, key=lambda d: d.datetime_utc)
+
+
+================================================
+FILE: src/garth/exc.py
+================================================
+from dataclasses import dataclass
+
+from requests import HTTPError
+
+
+@dataclass
+class GarthException(Exception):
+    """Base exception for all garth exceptions."""
+
+    msg: str
+
+
+@dataclass
+class GarthHTTPError(GarthException):
+    error: HTTPError
+
+    def __str__(self) -> str:
+        return f"{self.msg}: {self.error}"
+
+
+================================================
+FILE: src/garth/http.py
+================================================
+import base64
+import json
+import os
+from typing import IO, Any, Dict, Literal, Tuple
+from urllib.parse import urljoin
+
+from requests import HTTPError, Response, Session
+from requests.adapters import HTTPAdapter, Retry
+
+from . import sso
+from .auth_tokens import OAuth1Token, OAuth2Token
+from .exc import GarthHTTPError
+from .utils import asdict
+
+
+USER_AGENT = {"User-Agent": "GCM-iOS-5.7.2.1"}
+
+
+class Client:
+    sess: Session
+    last_resp: Response
+    domain: str = "garmin.com"
+    oauth1_token: OAuth1Token | Literal["needs_mfa"] | None = None
+    oauth2_token: OAuth2Token | dict[str, Any] | None = None
+    timeout: int = 10
+    retries: int = 3
+    status_forcelist: Tuple[int, ...] = (408, 429, 500, 502, 503, 504)
+    backoff_factor: float = 0.5
+    pool_connections: int = 10
+    pool_maxsize: int = 10
+    _user_profile: Dict[str, Any] | None = None
+
+    def __init__(self, session: Session | None = None, **kwargs):
+        self.sess = session if session else Session()
+        self.sess.headers.update(USER_AGENT)
+        self.configure(
+            timeout=self.timeout,
+            retries=self.retries,
+            status_forcelist=self.status_forcelist,
+            backoff_factor=self.backoff_factor,
+            **kwargs,
+        )
+
+    def configure(
+        self,
+        /,
+        oauth1_token: OAuth1Token | None = None,
+        oauth2_token: OAuth2Token | None = None,
+        domain: str | None = None,
+        proxies: Dict[str, str] | None = None,
+        ssl_verify: bool | None = None,
+        timeout: int | None = None,
+        retries: int | None = None,
+        status_forcelist: Tuple[int, ...] | None = None,
+        backoff_factor: float | None = None,
+        pool_connections: int | None = None,
+        pool_maxsize: int | None = None,
+    ):
+        if oauth1_token is not None:
+            self.oauth1_token = oauth1_token
+        if oauth2_token is not None:
+            self.oauth2_token = oauth2_token
+        if domain:
+            self.domain = domain
+        if proxies is not None:
+            self.sess.proxies.update(proxies)
+        if ssl_verify is not None:
+            self.sess.verify = ssl_verify
+        if timeout is not None:
+            self.timeout = timeout
+        if retries is not None:
+            self.retries = retries
+        if status_forcelist is not None:
+            self.status_forcelist = status_forcelist
+        if backoff_factor is not None:
+            self.backoff_factor = backoff_factor
+        if pool_connections is not None:
+            self.pool_connections = pool_connections
+        if pool_maxsize is not None:
+            self.pool_maxsize = pool_maxsize
+
+        retry = Retry(
+            total=self.retries,
+            status_forcelist=self.status_forcelist,
+            backoff_factor=self.backoff_factor,
+        )
+        adapter = HTTPAdapter(
+            max_retries=retry,
+            pool_connections=self.pool_connections,
+            pool_maxsize=self.pool_maxsize,
+        )
+        self.sess.mount("https://", adapter)
+
+    @property
+    def user_profile(self):
+        if not self._user_profile:
+            self._user_profile = self.connectapi(
+                "/userprofile-service/socialProfile"
+            )
+            assert isinstance(self._user_profile, dict), (
+                "No profile from connectapi"
+            )
+        return self._user_profile
+
+    @property
+    def profile(self):
+        return self.user_profile
+
+    @property
+    def username(self):
+        return self.user_profile["userName"]
+
+    def request(
+        self,
+        method: str,
+        subdomain: str,
+        path: str,
+        /,
+        api: bool = False,
+        referrer: str | bool = False,
+        headers: dict = {},
+        **kwargs,
+    ) -> Response:
+        url = f"https://{subdomain}.{self.domain}"
+        url = urljoin(url, path)
+        if referrer is True and self.last_resp:
+            headers["referer"] = self.last_resp.url
+        if api:
+            assert self.oauth1_token, (
+                "OAuth1 token is required for API requests"
+            )
+            if (
+                not isinstance(self.oauth2_token, OAuth2Token)
+                or self.oauth2_token.expired
+            ):
+                self.refresh_oauth2()
+            headers["Authorization"] = str(self.oauth2_token)
+        self.last_resp = self.sess.request(
+            method,
+            url,
+            headers=headers,
+            timeout=self.timeout,
+            **kwargs,
+        )
+        try:
+            self.last_resp.raise_for_status()
+        except HTTPError as e:
+            raise GarthHTTPError(
+                msg="Error in request",
+                error=e,
+            )
+        return self.last_resp
+
+    def get(self, *args, **kwargs) -> Response:
+        return self.request("GET", *args, **kwargs)
+
+    def post(self, *args, **kwargs) -> Response:
+        return self.request("POST", *args, **kwargs)
+
+    def delete(self, *args, **kwargs) -> Response:
+        return self.request("DELETE", *args, **kwargs)
+
+    def put(self, *args, **kwargs) -> Response:
+        return self.request("PUT", *args, **kwargs)
+
+    def login(self, *args, **kwargs):
+        self.oauth1_token, self.oauth2_token = sso.login(
+            *args, **kwargs, client=self
+        )
+        return self.oauth1_token, self.oauth2_token
+
+    def resume_login(self, *args, **kwargs):
+        self.oauth1_token, self.oauth2_token = sso.resume_login(
+            *args, **kwargs
+        )
+        return self.oauth1_token, self.oauth2_token
+
+    def refresh_oauth2(self):
+        assert self.oauth1_token and isinstance(
+            self.oauth1_token, OAuth1Token
+        ), "OAuth1 token is required for OAuth2 refresh"
+        # There is a way to perform a refresh of an OAuth2 token, but it
+        # appears even Garmin uses this approach when the OAuth2 is expired
+        self.oauth2_token = sso.exchange(self.oauth1_token, self)
+
+    def connectapi(
+        self, path: str, method="GET", **kwargs
+    ) -> Dict[str, Any] | None:
+        resp = self.request(method, "connectapi", path, api=True, **kwargs)
+        if resp.status_code == 204:
+            return None
+        return resp.json()
+
+    def download(self, path: str, **kwargs) -> bytes:
+        resp = self.get("connectapi", path, api=True, **kwargs)
+        return resp.content
+
+    def upload(
+        self, fp: IO[bytes], /, path: str = "/upload-service/upload"
+    ) -> Dict[str, Any]:
+        fname = os.path.basename(fp.name)
+        files = {"file": (fname, fp)}
+        result = self.connectapi(
+            path,
+            method="POST",
+            files=files,
+        )
+        assert result is not None, "No result from upload"
+        return result
+
+    def dump(self, dir_path: str):
+        dir_path = os.path.expanduser(dir_path)
+        os.makedirs(dir_path, exist_ok=True)
+        with open(os.path.join(dir_path, "oauth1_token.json"), "w") as f:
+            if self.oauth1_token:
+                json.dump(asdict(self.oauth1_token), f, indent=4)
+        with open(os.path.join(dir_path, "oauth2_token.json"), "w") as f:
+            if self.oauth2_token:
+                json.dump(asdict(self.oauth2_token), f, indent=4)
+
+    def dumps(self) -> str:
+        r = []
+        r.append(asdict(self.oauth1_token))
+        r.append(asdict(self.oauth2_token))
+        s = json.dumps(r)
+        return base64.b64encode(s.encode()).decode()
+
+    def load(self, dir_path: str):
+        dir_path = os.path.expanduser(dir_path)
+        with open(os.path.join(dir_path, "oauth1_token.json")) as f:
+            oauth1 = OAuth1Token(**json.load(f))
+        with open(os.path.join(dir_path, "oauth2_token.json")) as f:
+            oauth2 = OAuth2Token(**json.load(f))
+        self.configure(
+            oauth1_token=oauth1, oauth2_token=oauth2, domain=oauth1.domain
+        )
+
+    def loads(self, s: str):
+        oauth1, oauth2 = json.loads(base64.b64decode(s))
+        self.configure(
+            oauth1_token=OAuth1Token(**oauth1),
+            oauth2_token=OAuth2Token(**oauth2),
+            domain=oauth1.get("domain"),
+        )
+
+
+client = Client()
+
+
+================================================
+FILE: src/garth/sso.py
+================================================
+import asyncio
+import re
+import time
+from typing import Any, Callable, Dict, Literal, Tuple
+from urllib.parse import parse_qs
+
+import requests
+from requests import Session
+from requests_oauthlib import OAuth1Session
+
+from . import http
+from .auth_tokens import OAuth1Token, OAuth2Token
+from .exc import GarthException
+
+
+CSRF_RE = re.compile(r'name="_csrf"\s+value="(.+?)"')
+TITLE_RE = re.compile(r"<title>(.+?)</title>")
+OAUTH_CONSUMER_URL = "https://thegarth.s3.amazonaws.com/oauth_consumer.json"
+OAUTH_CONSUMER: Dict[str, str] = {}
+USER_AGENT = {"User-Agent": "com.garmin.android.apps.connectmobile"}
+
+
+class GarminOAuth1Session(OAuth1Session):
+    def __init__(
+        self,
+        /,
+        parent: Session | None = None,
+        **kwargs,
+    ):
+        global OAUTH_CONSUMER
+        if not OAUTH_CONSUMER:
+            OAUTH_CONSUMER = requests.get(OAUTH_CONSUMER_URL).json()
+        super().__init__(
+            OAUTH_CONSUMER["consumer_key"],
+            OAUTH_CONSUMER["consumer_secret"],
+            **kwargs,
+        )
+        if parent is not None:
+            self.mount("https://", parent.adapters["https://"])
+            self.proxies = parent.proxies
+            self.verify = parent.verify
+
+
+def login(
+    email: str,
+    password: str,
+    /,
+    client: "http.Client | None" = None,
+    prompt_mfa: Callable | None = lambda: input("MFA code: "),
+    return_on_mfa: bool = False,
+) -> (
+    Tuple[OAuth1Token, OAuth2Token]
+    | Tuple[Literal["needs_mfa"], dict[str, Any]]
+):
+    """Login to Garmin Connect.
+
+    Args:
+        email: Garmin account email
+        password: Garmin account password
+        client: Optional HTTP client to use
+        prompt_mfa: Callable that prompts for MFA code. Returns on MFA if None.
+        return_on_mfa: If True, returns dict with MFA info instead of prompting
+
+    Returns:
+        If return_on_mfa=False (default):
+            Tuple[OAuth1Token, OAuth2Token]: OAuth tokens after login
+        If return_on_mfa=True and MFA required:
+            dict: Contains needs_mfa and client_state for resume_login()
+    """
+    client = client or http.client
+
+    # Define params based on domain
+    SSO = f"https://sso.{client.domain}/sso"
+    SSO_EMBED = f"{SSO}/embed"
+    SSO_EMBED_PARAMS = dict(
+        id="gauth-widget",
+        embedWidget="true",
+        gauthHost=SSO,
+    )
+    SIGNIN_PARAMS = {
+        **SSO_EMBED_PARAMS,
+        **dict(
+            gauthHost=SSO_EMBED,
+            service=SSO_EMBED,
+            source=SSO_EMBED,
+            redirectAfterAccountLoginUrl=SSO_EMBED,
+            redirectAfterAccountCreationUrl=SSO_EMBED,
+        ),
+    }
+
+    # Set cookies
+    client.get("sso", "/sso/embed", params=SSO_EMBED_PARAMS)
+
+    # Get CSRF token
+    client.get(
+        "sso",
+        "/sso/signin",
+        params=SIGNIN_PARAMS,
+        referrer=True,
+    )
+    csrf_token = get_csrf_token(client.last_resp.text)
+
+    # Submit login form with email and password
+    client.post(
+        "sso",
+        "/sso/signin",
+        params=SIGNIN_PARAMS,
+        referrer=True,
+        data=dict(
+            username=email,
+            password=password,
+            embed="true",
+            _csrf=csrf_token,
+        ),
+    )
+    title = get_title(client.last_resp.text)
+
+    # Handle MFA
+    if "MFA" in title:
+        if return_on_mfa or prompt_mfa is None:
+            return "needs_mfa", {
+                "signin_params": SIGNIN_PARAMS,
+                "client": client,
+            }
+
+        handle_mfa(client, SIGNIN_PARAMS, prompt_mfa)
+        title = get_title(client.last_resp.text)
+
+    if title != "Success":
+        raise GarthException(f"Unexpected title: {title}")
+    return _complete_login(client)
+
+
+def get_oauth1_token(ticket: str, client: "http.Client") -> OAuth1Token:
+    sess = GarminOAuth1Session(parent=client.sess)
+    base_url = f"https://connectapi.{client.domain}/oauth-service/oauth/"
+    login_url = f"https://sso.{client.domain}/sso/embed"
+    url = (
+        f"{base_url}preauthorized?ticket={ticket}&login-url={login_url}"
+        "&accepts-mfa-tokens=true"
+    )
+    resp = sess.get(
+        url,
+        headers=USER_AGENT,
+        timeout=client.timeout,
+    )
+    resp.raise_for_status()
+    parsed = parse_qs(resp.text)
+    token = {k: v[0] for k, v in parsed.items()}
+    return OAuth1Token(domain=client.domain, **token)  # type: ignore
+
+
+def exchange(oauth1: OAuth1Token, client: "http.Client") -> OAuth2Token:
+    sess = GarminOAuth1Session(
+        resource_owner_key=oauth1.oauth_token,
+        resource_owner_secret=oauth1.oauth_token_secret,
+        parent=client.sess,
+    )
+    data = dict(mfa_token=oauth1.mfa_token) if oauth1.mfa_token else {}
+    base_url = f"https://connectapi.{client.domain}/oauth-service/oauth/"
+    url = f"{base_url}exchange/user/2.0"
+    headers = {
+        **USER_AGENT,
+        **{"Content-Type": "application/x-www-form-urlencoded"},
+    }
+    resp = sess.post(
+        url,
+        headers=headers,
+        data=data,
+        timeout=client.timeout,
+    )
+    resp.raise_for_status()
+    token = resp.json()
+    return OAuth2Token(**set_expirations(token))
+
+
+def handle_mfa(
+    client: "http.Client", signin_params: dict, prompt_mfa: Callable
+) -> None:
+    csrf_token = get_csrf_token(client.last_resp.text)
+    if asyncio.iscoroutinefunction(prompt_mfa):
+        mfa_code = asyncio.run(prompt_mfa())
+    else:
+        mfa_code = prompt_mfa()
+    client.post(
+        "sso",
+        "/sso/verifyMFA/loginEnterMfaCode",
+        params=signin_params,
+        referrer=True,
+        data={
+            "mfa-code": mfa_code,
+            "embed": "true",
+            "_csrf": csrf_token,
+            "fromPage": "setupEnterMfaCode",
+        },
+    )
+
+
+def set_expirations(token: dict) -> dict:
+    token["expires_at"] = int(time.time() + token["expires_in"])
+    token["refresh_token_expires_at"] = int(
+        time.time() + token["refresh_token_expires_in"]
+    )
+    return token
+
+
+def get_csrf_token(html: str) -> str:
+    m = CSRF_RE.search(html)
+    if not m:
+        raise GarthException("Couldn't find CSRF token")
+    return m.group(1)
+
+
+def get_title(html: str) -> str:
+    m = TITLE_RE.search(html)
+    if not m:
+        raise GarthException("Couldn't find title")
+    return m.group(1)
+
+
+def resume_login(
+    client_state: dict, mfa_code: str
+) -> Tuple[OAuth1Token, OAuth2Token]:
+    """Complete login after MFA code is provided.
+
+    Args:
+        client_state: The client state from login() when MFA was needed
+        mfa_code: The MFA code provided by the user
+
+    Returns:
+        Tuple[OAuth1Token, OAuth2Token]: The OAuth tokens after login
+    """
+    client = client_state["client"]
+    signin_params = client_state["signin_params"]
+    handle_mfa(client, signin_params, lambda: mfa_code)
+    return _complete_login(client)
+
+
+def _complete_login(client: "http.Client") -> Tuple[OAuth1Token, OAuth2Token]:
+    """Complete the login process after successful authentication.
+
+    Args:
+        client: The HTTP client
+
+    Returns:
+        Tuple[OAuth1Token, OAuth2Token]: The OAuth tokens
+    """
+    # Parse ticket
+    m = re.search(r'embed\?ticket=([^"]+)"', client.last_resp.text)
+    if not m:
+        raise GarthException(
+            "Couldn't find ticket in response"
+        )  # pragma: no cover
+    ticket = m.group(1)
+
+    oauth1 = get_oauth1_token(ticket, client)
+    oauth2 = exchange(oauth1, client)
+
+    return oauth1, oauth2
+
+
+================================================
+FILE: src/garth/stats/__init__.py
+================================================
+__all__ = [
+    "DailyHRV",
+    "DailyHydration",
+    "DailyIntensityMinutes",
+    "DailySleep",
+    "DailySteps",
+    "DailyStress",
+    "WeeklyIntensityMinutes",
+    "WeeklyStress",
+    "WeeklySteps",
+]
+
+from .hrv import DailyHRV
+from .hydration import DailyHydration
+from .intensity_minutes import DailyIntensityMinutes, WeeklyIntensityMinutes
+from .sleep import DailySleep
+from .steps import DailySteps, WeeklySteps
+from .stress import DailyStress, WeeklyStress
+
+
+================================================
+FILE: src/garth/stats/_base.py
+================================================
+from datetime import date, timedelta
+from typing import ClassVar
+
+from pydantic.dataclasses import dataclass
+from typing_extensions import Self
+
+from .. import http
+from ..utils import camel_to_snake_dict, format_end_date
+
+
+@dataclass
+class Stats:
+    calendar_date: date
+
+    _path: ClassVar[str]
+    _page_size: ClassVar[int]
+
+    @classmethod
+    def list(
+        cls,
+        end: date | str | None = None,
+        period: int = 1,
+        *,
+        client: http.Client | None = None,
+    ) -> list[Self]:
+        client = client or http.client
+        end = format_end_date(end)
+        period_type = "days" if "daily" in cls._path else "weeks"
+
+        if period > cls._page_size:
+            page = cls.list(end, cls._page_size, client=client)
+            if not page:
+                return []
+            page = (
+                cls.list(
+                    end - timedelta(**{period_type: cls._page_size}),
+                    period - cls._page_size,
+                    client=client,
+                )
+                + page
+            )
+            return page
+
+        start = end - timedelta(**{period_type: period - 1})
+        path = cls._path.format(start=start, end=end, period=period)
+        page_dirs = client.connectapi(path)
+        if not isinstance(page_dirs, list) or not page_dirs:
+            return []
+        page_dirs = [d for d in page_dirs if isinstance(d, dict)]
+        if page_dirs and "values" in page_dirs[0]:
+            page_dirs = [{**stat, **stat.pop("values")} for stat in page_dirs]
+        page_dirs = [camel_to_snake_dict(stat) for stat in page_dirs]
+        return [cls(**stat) for stat in page_dirs]
+
+
+================================================
+FILE: src/garth/stats/hrv.py
+================================================
+from datetime import date, datetime, timedelta
+from typing import Any, ClassVar, cast
+
+from pydantic.dataclasses import dataclass
+from typing_extensions import Self
+
+from .. import http
+from ..utils import camel_to_snake_dict, format_end_date
+
+
+@dataclass
+class HRVBaseline:
+    low_upper: int
+    balanced_low: int
+    balanced_upper: int
+    marker_value: float | None
+
+
+@dataclass
+class DailyHRV:
+    calendar_date: date
+    weekly_avg: int | None
+    last_night_avg: int | None
+    last_night_5_min_high: int | None
+    baseline: HRVBaseline | None
+    status: str
+    feedback_phrase: str
+    create_time_stamp: datetime
+
+    _path: ClassVar[str] = "/hrv-service/hrv/daily/{start}/{end}"
+    _page_size: ClassVar[int] = 28
+
+    @classmethod
+    def list(
+        cls,
+        end: date | str | None = None,
+        period: int = 28,
+        *,
+        client: http.Client | None = None,
+    ) -> list[Self]:
+        client = client or http.client
+        end = format_end_date(end)
+
+        # Paginate if period is greater than page size
+        if period > cls._page_size:
+            page = cls.list(end, cls._page_size, client=client)
+            if not page:
+                return []
+            page = (
+                cls.list(
+                    end - timedelta(days=cls._page_size),
+                    period - cls._page_size,
+                    client=client,
+                )
+                + page
+            )
+            return page
+
+        start = end - timedelta(days=period - 1)
+        path = cls._path.format(start=start, end=end)
+        response = client.connectapi(path)
+        if response is None:
+            return []
+        daily_hrv = camel_to_snake_dict(response)["hrv_summaries"]
+        daily_hrv = cast(list[dict[str, Any]], daily_hrv)
+        return [cls(**hrv) for hrv in daily_hrv]
+
+
+================================================
+FILE: src/garth/stats/hydration.py
+================================================
+from typing import ClassVar
+
+from pydantic.dataclasses import dataclass
+
+from ._base import Stats
+
+
+BASE_PATH = "/usersummary-service/stats/hydration"
+
+
+@dataclass
+class DailyHydration(Stats):
+    value_in_ml: float
+    goal_in_ml: float
+
+    _path: ClassVar[str] = f"{BASE_PATH}/daily/{{start}}/{{end}}"
+    _page_size: ClassVar[int] = 28
+
+
+================================================
+FILE: src/garth/stats/intensity_minutes.py
+================================================
+from typing import ClassVar
+
+from pydantic.dataclasses import dataclass
+
+from ._base import Stats
+
+
+BASE_PATH = "/usersummary-service/stats/im"
+
+
+@dataclass
+class DailyIntensityMinutes(Stats):
+    weekly_goal: int
+    moderate_value: int | None = None
+    vigorous_value: int | None = None
+
+    _path: ClassVar[str] = f"{BASE_PATH}/daily/{{start}}/{{end}}"
+    _page_size: ClassVar[int] = 28
+
+
+@dataclass
+class WeeklyIntensityMinutes(Stats):
+    weekly_goal: int
+    moderate_value: int | None = None
+    vigorous_value: int | None = None
+
+    _path: ClassVar[str] = f"{BASE_PATH}/weekly/{{start}}/{{end}}"
+    _page_size: ClassVar[int] = 52
+
+
+================================================
+FILE: src/garth/stats/sleep.py
+================================================
+from typing import ClassVar
+
+from pydantic.dataclasses import dataclass
+
+from ._base import Stats
+
+
+@dataclass
+class DailySleep(Stats):
+    value: int | None
+
+    _path: ClassVar[str] = (
+        "/wellness-service/stats/daily/sleep/score/{start}/{end}"
+    )
+    _page_size: ClassVar[int] = 28
+
+
+================================================
+FILE: src/garth/stats/steps.py
+================================================
+from typing import ClassVar
+
+from pydantic.dataclasses import dataclass
+
+from ._base import Stats
+
+
+BASE_PATH = "/usersummary-service/stats/steps"
+
+
+@dataclass
+class DailySteps(Stats):
+    total_steps: int | None
+    total_distance: int | None
+    step_goal: int
+
+    _path: ClassVar[str] = f"{BASE_PATH}/daily/{{start}}/{{end}}"
+    _page_size: ClassVar[int] = 28
+
+
+@dataclass
+class WeeklySteps(Stats):
+    total_steps: int
+    average_steps: float
+    average_distance: float
+    total_distance: float
+    wellness_data_days_count: int
+
+    _path: ClassVar[str] = f"{BASE_PATH}/weekly/{{end}}/{{period}}"
+    _page_size: ClassVar[int] = 52
+
+
+================================================
+FILE: src/garth/stats/stress.py
+================================================
+from typing import ClassVar
+
+from pydantic.dataclasses import dataclass
+
+from ._base import Stats
+
+
+BASE_PATH = "/usersummary-service/stats/stress"
+
+
+@dataclass
+class DailyStress(Stats):
+    overall_stress_level: int
+    rest_stress_duration: int | None = None
+    low_stress_duration: int | None = None
+    medium_stress_duration: int | None = None
+    high_stress_duration: int | None = None
+
+    _path: ClassVar[str] = f"{BASE_PATH}/daily/{{start}}/{{end}}"
+    _page_size: ClassVar[int] = 28
+
+
+@dataclass
+class WeeklyStress(Stats):
+    value: int
+
+    _path: ClassVar[str] = f"{BASE_PATH}/weekly/{{end}}/{{period}}"
+    _page_size: ClassVar[int] = 52
+
+
+================================================
+FILE: src/garth/users/__init__.py
+================================================
+from .profile import UserProfile
+from .settings import UserSettings
+
+
+__all__ = ["UserProfile", "UserSettings"]
+
+
+================================================
+FILE: src/garth/users/profile.py
+================================================
+from pydantic.dataclasses import dataclass
+from typing_extensions import Self
+
+from .. import http
+from ..utils import camel_to_snake_dict
+
+
+@dataclass
+class UserProfile:
+    id: int
+    profile_id: int
+    garmin_guid: str
+    display_name: str
+    full_name: str
+    user_name: str
+    profile_image_type: str | None
+    profile_image_url_large: str | None
+    profile_image_url_medium: str | None
+    profile_image_url_small: str | None
+    location: str | None
+    facebook_url: str | None
+    twitter_url: str | None
+    personal_website: str | None
+    motivation: str | None
+    bio: str | None
+    primary_activity: str | None
+    favorite_activity_types: list[str]
+    running_training_speed: float
+    cycling_training_speed: float
+    favorite_cycling_activity_types: list[str]
+    cycling_classification: str | None
+    cycling_max_avg_power: float
+    swimming_training_speed: float
+    profile_visibility: str
+    activity_start_visibility: str
+    activity_map_visibility: str
+    course_visibility: str
+    activity_heart_rate_visibility: str
+    activity_power_visibility: str
+    badge_visibility: str
+    show_age: bool
+    show_weight: bool
+    show_height: bool
+    show_weight_class: bool
+    show_age_range: bool
+    show_gender: bool
+    show_activity_class: bool
+    show_vo_2_max: bool
+    show_personal_records: bool
+    show_last_12_months: bool
+    show_lifetime_totals: bool
+    show_upcoming_events: bool
+    show_recent_favorites: bool
+    show_recent_device: bool
+    show_recent_gear: bool
+    show_badges: bool
+    other_activity: str | None
+    other_primary_activity: str | None
+    other_motivation: str | None
+    user_roles: list[str]
+    name_approved: bool
+    user_profile_full_name: str
+    make_golf_scorecards_private: bool
+    allow_golf_live_scoring: bool
+    allow_golf_scoring_by_connections: bool
+    user_level: int
+    user_point: int
+    level_update_date: str
+    level_is_viewed: bool
+    level_point_threshold: int
+    user_point_offset: int
+    user_pro: bool
+
+    @classmethod
+    def get(cls, /, client: http.Client | None = None) -> Self:
+        client = client or http.client
+        profile = client.connectapi("/userprofile-service/socialProfile")
+        assert isinstance(profile, dict)
+        return cls(**camel_to_snake_dict(profile))
+
+
+================================================
+FILE: src/garth/users/settings.py
+================================================
+from datetime import date
+from typing import Dict
+
+from pydantic.dataclasses import dataclass
+from typing_extensions import Self
+
+from .. import http
+from ..utils import camel_to_snake_dict
+
+
+@dataclass
+class PowerFormat:
+    format_id: int
+    format_key: str
+    min_fraction: int
+    max_fraction: int
+    grouping_used: bool
+    display_format: str | None
+
+
+@dataclass
+class FirstDayOfWeek:
+    day_id: int
+    day_name: str
+    sort_order: int
+    is_possible_first_day: bool
+
+
+@dataclass
+class WeatherLocation:
+    use_fixed_location: bool | None
+    latitude: float | None
+    longitude: float | None
+    location_name: str | None
+    iso_country_code: str | None
+    postal_code: str | None
+
+
+@dataclass
+class UserData:
+    gender: str
+    weight: float
+    height: float
+    time_format: str
+    birth_date: date
+    measurement_system: str
+    activity_level: str | None
+    handedness: str
+    power_format: PowerFormat
+    heart_rate_format: PowerFormat
+    first_day_of_week: FirstDayOfWeek
+    vo_2_max_running: float | None
+    vo_2_max_cycling: float | None
+    lactate_threshold_speed: float | None
+    lactate_threshold_heart_rate: float | None
+    dive_number: int | None
+    intensity_minutes_calc_method: str
+    moderate_intensity_minutes_hr_zone: int
+    vigorous_intensity_minutes_hr_zone: int
+    hydration_measurement_unit: str
+    hydration_containers: list[Dict[str, float | str | None]]
+    hydration_auto_goal_enabled: bool
+    firstbeat_max_stress_score: float | None
+    firstbeat_cycling_lt_timestamp: int | None
+    firstbeat_running_lt_timestamp: int | None
+    threshold_heart_rate_auto_detected: bool
+    ftp_auto_detected: bool | None
+    training_status_paused_date: str | None
+    weather_location: WeatherLocation | None
+    golf_distance_unit: str | None
+    golf_elevation_unit: str | None
+    golf_speed_unit: str | None
+    external_bottom_time: float | None
+
+
+@dataclass
+class UserSleep:
+    sleep_time: int
+    default_sleep_time: bool
+    wake_time: int
+    default_wake_time: bool
+
+
+@dataclass
+class UserSleepWindow:
+    sleep_window_frequency: str
+    start_sleep_time_seconds_from_midnight: int
+    end_sleep_time_seconds_from_midnight: int
+
+
+@dataclass
+class UserSettings:
+    id: int
+    user_data: UserData
+    user_sleep: UserSleep
+    connect_date: str | None
+    source_type: str | None
+    user_sleep_windows: list[UserSleepWindow] | None = None
+
+    @classmethod
+    def get(cls, /, client: http.Client | None = None) -> Self:
+        client = client or http.client
+        settings = client.connectapi(
+            "/userprofile-service/userprofile/user-settings"
+        )
+        assert isinstance(settings, dict)
+        data = camel_to_snake_dict(settings)
+        return cls(**data)
+
+
+================================================
+FILE: src/garth/utils.py
+================================================
+import dataclasses
+import re
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Dict, List, Union
+
+
+CAMEL_TO_SNAKE = re.compile(
+    r"((?<=[a-z0-9])[A-Z]|(?!^)[A-Z](?=[a-z])|(?<=[a-zA-Z])[0-9])"
+)
+
+
+def camel_to_snake(camel_str: str) -> str:
+    snake_str = CAMEL_TO_SNAKE.sub(r"_\1", camel_str)
+    return snake_str.lower()
+
+
+def camel_to_snake_dict(camel_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Converts a dictionary's keys from camel case to snake case. This version
+    handles nested dictionaries and lists.
+    """
+    snake_dict: Dict[str, Any] = {}
+    for k, v in camel_dict.items():
+        new_key = camel_to_snake(k)
+        if isinstance(v, dict):
+            snake_dict[new_key] = camel_to_snake_dict(v)
+        elif isinstance(v, list):
+            snake_dict[new_key] = [
+                camel_to_snake_dict(i) if isinstance(i, dict) else i for i in v
+            ]
+        else:
+            snake_dict[new_key] = v
+    return snake_dict
+
+
+def format_end_date(end: Union[date, str, None]) -> date:
+    if end is None:
+        end = date.today()
+    elif isinstance(end, str):
+        end = date.fromisoformat(end)
+    return end
+
+
+def date_range(date_: Union[date, str], days: int):
+    date_ = date_ if isinstance(date_, date) else date.fromisoformat(date_)
+    for day in range(days):
+        yield date_ - timedelta(days=day)
+
+
+def asdict(obj):
+    if dataclasses.is_dataclass(obj):
+        result = {}
+        for field in dataclasses.fields(obj):
+            value = getattr(obj, field.name)
+            result[field.name] = asdict(value)
+        return result
+
+    if isinstance(obj, List):
+        return [asdict(v) for v in obj]
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+
+    return obj
+
+
+def get_localized_datetime(
+    gmt_timestamp: int, local_timestamp: int
+) -> datetime:
+    local_diff = local_timestamp - gmt_timestamp
+    local_offset = timezone(timedelta(milliseconds=local_diff))
+    gmt_time = datetime.fromtimestamp(gmt_timestamp / 1000, timezone.utc)
+    return gmt_time.astimezone(local_offset)
+
+
+================================================
+FILE: src/garth/version.py
+================================================
+__version__ = "0.5.17"
+
+
+================================================
+FILE: tests/conftest.py
+================================================
+import gzip
+import io
+import json
+import os
+import re
+import time
+
+import pytest
+from requests import Session
+
+from garth.auth_tokens import OAuth1Token, OAuth2Token
+from garth.http import Client
+
+
+@pytest.fixture
+def session():
+    return Session()
+
+
+@pytest.fixture
+def client(session) -> Client:
+    return Client(session=session)
+
+
+@pytest.fixture
+def oauth1_token_dict() -> dict:
+    return dict(
+        oauth_token="7fdff19aa9d64dda83e9d7858473aed1",
+        oauth_token_secret="49919d7c4c8241ac93fb4345886fbcea",
+        mfa_token="ab316f8640f3491f999f3298f3d6f1bb",
+        mfa_expiration_timestamp="2024-08-02 05:56:10.000",
+        domain="garmin.com",
+    )
+
+
+@pytest.fixture
+def oauth1_token(oauth1_token_dict) -> OAuth1Token:
+    return OAuth1Token(**oauth1_token_dict)
+
+
+@pytest.fixture
+def oauth2_token_dict() -> dict:
+    return dict(
+        scope="CONNECT_READ CONNECT_WRITE",
+        jti="foo",
+        token_type="Bearer",
+        access_token="bar",
+        refresh_token="baz",
+        expires_in=3599,
+        refresh_token_expires_in=7199,
+    )
+
+
+@pytest.fixture
+def oauth2_token(oauth2_token_dict: dict) -> OAuth2Token:
+    token = OAuth2Token(
+        expires_at=int(time.time() + 3599),
+        refresh_token_expires_at=int(time.time() + 7199),
+        **oauth2_token_dict,
+    )
+    return token
+
+
+@pytest.fixture
+def authed_client(
+    oauth1_token: OAuth1Token, oauth2_token: OAuth2Token
+) -> Client:
+    client = Client()
+    try:
+        client.load(os.environ["GARTH_HOME"])
+    except KeyError:
+        client.configure(oauth1_token=oauth1_token, oauth2_token=oauth2_token)
+    assert client.oauth2_token and isinstance(client.oauth2_token, OAuth2Token)
+    assert not client.oauth2_token.expired
+    return client
+
+
+@pytest.fixture
+def vcr(vcr):
+    if "GARTH_HOME" not in os.environ:
+        vcr.record_mode = "none"
+    return vcr
+
+
+def sanitize_cookie(cookie_value) -> str:
+    return re.sub(r"=[^;]*", "=SANITIZED", cookie_value)
+
+
+def sanitize_request(request):
+    if request.body:
+        try:
+            body = request.body.decode("utf8")
+        except UnicodeDecodeError:
+            ...
+        else:
+            for key in ["username", "password", "refresh_token"]:
+                body = re.sub(key + r"=[^&]*", f"{key}=SANITIZED", body)
+            request.body = body.encode("utf8")
+
+    if "Cookie" in request.headers:
+        cookies = request.headers["Cookie"].split("; ")
+        sanitized_cookies = [sanitize_cookie(cookie) for cookie in cookies]
+        request.headers["Cookie"] = "; ".join(sanitized_cookies)
+    return request
+
+
+def sanitize_response(response):
+    try:
+        encoding = response["headers"].pop("Content-Encoding")
+    except KeyError:
+        ...
+    else:
+        if encoding[0] == "gzip":
+            body = response["body"]["string"]
+            buffer = io.BytesIO(body)
+            try:
+                body = gzip.GzipFile(fileobj=buffer).read()
+            except gzip.BadGzipFile:  # pragma: no cover
+                ...
+            else:
+                response["body"]["string"] = body
+
+    for key in ["set-cookie", "Set-Cookie"]:
+        if key in response["headers"]:
+            cookies = response["headers"][key]
+            sanitized_cookies = [sanitize_cookie(cookie) for cookie in cookies]
+            response["headers"][key] = sanitized_cookies
+
+    try:
+        body = response["body"]["string"].decode("utf8")
+    except UnicodeDecodeError:
+        pass
+    else:
+        patterns = [
+            "oauth_token=[^&]*",
+            "oauth_token_secret=[^&]*",
+            "mfa_token=[^&]*",
+        ]
+        for pattern in patterns:
+            body = re.sub(pattern, pattern.split("=")[0] + "=SANITIZED", body)
+        try:
+            body_json = json.loads(body)
+        except json.JSONDecodeError:
+            pass
+        else:
+            if body_json and isinstance(body_json, dict):
+                for field in [
+                    "access_token",
+                    "refresh_token",
+                    "jti",
+                    "consumer_key",
+                    "consumer_secret",
+                ]:
+                    if field in body_json:
+                        body_json[field] = "SANITIZED"
+
+            body = json.dumps(body_json)
+        response["body"]["string"] = body.encode("utf8")
+
+    return response
+
+
+@pytest.fixture(scope="session")
+def vcr_config():
+    return {
+        "filter_headers": [("Authorization", "Bearer SANITIZED")],
+        "before_record_request": sanitize_request,
+        "before_record_response": sanitize_response,
+    }
+
+
+================================================
+FILE: tests/data/test_body_battery_data.py
+================================================
+from datetime import date
+from unittest.mock import MagicMock
+
+import pytest
+
+from garth import BodyBatteryData, DailyBodyBatteryStress
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_body_battery_data_get(authed_client: Client):
+    body_battery_data = BodyBatteryData.get("2023-07-20", client=authed_client)
+    assert isinstance(body_battery_data, list)
+
+    if body_battery_data:
+        # Check first event if available
+        event = body_battery_data[0]
+        assert event is not None
+
+        # Test body battery readings property
+        readings = event.body_battery_readings
+        assert isinstance(readings, list)
+
+        if readings:
+            # Test reading structure
+            reading = readings[0]
+            assert hasattr(reading, "timestamp")
+            assert hasattr(reading, "status")
+            assert hasattr(reading, "level")
+            assert hasattr(reading, "version")
+
+            # Test level properties
+            assert event.current_level is not None and isinstance(
+                event.current_level, int
+            )
+            assert event.max_level is not None and isinstance(
+                event.max_level, int
+            )
+            assert event.min_level is not None and isinstance(
+                event.min_level, int
+            )
+
+
+@pytest.mark.vcr
+def test_body_battery_data_list(authed_client: Client):
+    days = 3
+    end = date(2023, 7, 20)
+    body_battery_data = BodyBatteryData.list(end, days, client=authed_client)
+    assert isinstance(body_battery_data, list)
+
+    # Test that we get data (may be empty if no events)
+    assert len(body_battery_data) >= 0
+
+
+@pytest.mark.vcr
+def test_daily_body_battery_stress_get(authed_client: Client):
+    daily_data = DailyBodyBatteryStress.get("2023-07-20", client=authed_client)
+
+    if daily_data:
+        # Test basic structure
+        assert daily_data.user_profile_pk
+        assert daily_data.calendar_date == date(2023, 7, 20)
+        assert daily_data.start_timestamp_gmt
+        assert daily_data.end_timestamp_gmt
+
+        # Test stress data
+        assert isinstance(daily_data.max_stress_level, int)
+        assert isinstance(daily_data.avg_stress_level, int)
+        assert isinstance(daily_data.stress_values_array, list)
+        assert isinstance(daily_data.body_battery_values_array, list)
+
+        # Test stress readings property
+        stress_readings = daily_data.stress_readings
+        assert isinstance(stress_readings, list)
+
+        if stress_readings:
+            stress_reading = stress_readings[0]
+            assert hasattr(stress_reading, "timestamp")
+            assert hasattr(stress_reading, "stress_level")
+
+        # Test body battery readings property
+        bb_readings = daily_data.body_battery_readings
+        assert isinstance(bb_readings, list)
+
+        if bb_readings:
+            bb_reading = bb_readings[0]
+            assert hasattr(bb_reading, "timestamp")
+            assert hasattr(bb_reading, "status")
+            assert hasattr(bb_reading, "level")
+            assert hasattr(bb_reading, "version")
+
+            # Test computed properties
+            assert daily_data.current_body_battery is not None and isinstance(
+                daily_data.current_body_battery, int
+            )
+            assert daily_data.max_body_battery is not None and isinstance(
+                daily_data.max_body_battery, int
+            )
+            assert daily_data.min_body_battery is not None and isinstance(
+                daily_data.min_body_battery, int
+            )
+
+            # Test body battery change
+            if len(bb_readings) >= 2:
+                change = daily_data.body_battery_change
+                assert change is not None
+
+
+@pytest.mark.vcr
+def test_daily_body_battery_stress_get_no_data(authed_client: Client):
+    # Test with a date that likely has no data
+    daily_data = DailyBodyBatteryStress.get("2020-01-01", client=authed_client)
+    # Should return None if no data available
+    assert daily_data is None or isinstance(daily_data, DailyBodyBatteryStress)
+
+
+@pytest.mark.vcr
+def test_daily_body_battery_stress_list(authed_client: Client):
+    days = 3
+    end = date(2023, 7, 20)
+    # Use max_workers=1 to avoid VCR issues with concurrent requests
+    daily_data_list = DailyBodyBatteryStress.list(
+        end, days, client=authed_client, max_workers=1
+    )
+    assert isinstance(daily_data_list, list)
+    assert (
+        len(daily_data_list) <= days
+    )  # May be less if some days have no data
+
+    # Test that each item is correct type
+    for daily_data in daily_data_list:
+        assert isinstance(daily_data, DailyBodyBatteryStress)
+        assert isinstance(daily_data.calendar_date, date)
+        assert daily_data.user_profile_pk
+
+
+@pytest.mark.vcr
+def test_body_battery_properties_edge_cases(authed_client: Client):
+    # Test empty data handling
+    daily_data = DailyBodyBatteryStress.get("2023-07-20", client=authed_client)
+
+    if daily_data:
+        # Test with potentially empty arrays
+        if not daily_data.body_battery_values_array:
+            assert daily_data.body_battery_readings == []
+            assert daily_data.current_body_battery is None
+            assert daily_data.max_body_battery is None
+            assert daily_data.min_body_battery is None
+            assert daily_data.body_battery_change is None
+
+        if not daily_data.stress_values_array:
+            assert daily_data.stress_readings == []
+
+
+# Error handling tests for BodyBatteryData.get()
+def test_body_battery_data_get_api_error():
+    """Test handling of API errors."""
+    mock_client = MagicMock()
+    mock_client.connectapi.side_effect = Exception("API Error")
+
+    result = BodyBatteryData.get("2023-07-20", client=mock_client)
+    assert result == []
+
+
+def test_body_battery_data_get_invalid_response():
+    """Test handling of non-list responses."""
+    mock_client = MagicMock()
+    mock_client.connectapi.return_value = {"error": "Invalid response"}
+
+    result = BodyBatteryData.get("2023-07-20", client=mock_client)
+    assert result == []
+
+
+def test_body_battery_data_get_missing_event_data():
+    """Test handling of items with missing event data."""
+    mock_client = MagicMock()
+    mock_client.connectapi.return_value = [
+        {"activityName": "Test", "averageStress": 25}  # Missing "event" key
+    ]
+
+    result = BodyBatteryData.get("2023-07-20", client=mock_client)
+    assert len(result) == 1
+    assert result[0].event is None
+
+
+def test_body_battery_data_get_missing_event_start_time():
+    """Test handling of event data missing eventStartTimeGmt."""
+    mock_client = MagicMock()
+    mock_client.connectapi.return_value = [
+        {
+            "event": {"eventType": "sleep"},  # Missing eventStartTimeGmt
+            "activityName": "Test",
+            "averageStress": 25,
+        }
+    ]
+
+    result = BodyBatteryData.get("2023-07-20", client=mock_client)
+    assert result == []  # Should skip invalid items
+
+
+def test_body_battery_data_get_invalid_datetime_format():
+    """Test handling of invalid datetime format."""
+    mock_client = MagicMock()
+    mock_client.connectapi.return_value = [
+        {
+            "event": {
+                "eventType": "sleep",
+                "eventStartTimeGmt": "invalid-date",
+            },
+            "activityName": "Test",
+            "averageStress": 25,
+        }
+    ]
+
+    result = BodyBatteryData.get("2023-07-20", client=mock_client)
+    assert result == []  # Should skip invalid items
+
+
+def test_body_battery_data_get_invalid_field_types():
+    """Test handling of invalid field types."""
+    mock_client = MagicMock()
+    mock_client.connectapi.return_value = [
+        {
+            "event": {
+                "eventType": "sleep",
+                "eventStartTimeGmt": "2023-07-20T10:00:00.000Z",
+                "timezoneOffset": "invalid",  # Should be number
+                "durationInMilliseconds": "invalid",  # Should be number
+                "bodyBatteryImpact": "invalid",  # Should be number
+            },
+            "activityName": "Test",
+            "averageStress": "invalid",  # Should be number
+            "stressValuesArray": "invalid",  # Should be list
+            "bodyBatteryValuesArray": "invalid",  # Should be list
+        }
+    ]
+
+    result = BodyBatteryData.get("2023-07-20", client=mock_client)
+    assert len(result) == 1
+    # Should handle invalid types gracefully
+
+
+def test_body_battery_data_get_validation_error():
+    """Test handling of validation errors during object creation."""
+    mock_client = MagicMock()
+    mock_client.connectapi.return_value = [
+        {
+            "event": {
+                "eventType": "sleep",
+                "eventStartTimeGmt": "2023-07-20T10:00:00.000Z",
+                # Missing required fields for BodyBatteryEvent
+            },
+            # Missing required fields for BodyBatteryData
+        }
+    ]
+
+    result = BodyBatteryData.get("2023-07-20", client=mock_client)
+    # Should handle validation errors and continue processing
+    assert isinstance(result, list)
+    assert len(result) == 1  # Should create object with missing fields as None
+    assert result[0].event is not None  # Event should be created
+    assert result[0].activity_name is None  # Missing fields should be None
+
+
+def test_body_battery_data_get_mixed_valid_invalid():
+    """Test processing with mix of valid and invalid items."""
+    mock_client = MagicMock()
+    mock_client.connectapi.return_value = [
+        {
+            "event": {
+                "eventType": "sleep",
+                "eventStartTimeGmt": "2023-07-20T10:00:00.000Z",
+                "timezoneOffset": -25200000,
+                "durationInMilliseconds": 28800000,
+                "bodyBatteryImpact": 35,
+                "feedbackType": "good_sleep",
+                "shortFeedback": "Good sleep",
+            },
+            "activityName": None,
+            "activityType": None,
+            "activityId": None,
+            "averageStress": 15.5,
+            "stressValuesArray": [[1689811800000, 12]],
+            "bodyBatteryValuesArray": [[1689811800000, "charging", 45, 1.0]],
+        },
+        {
+            # Invalid - missing eventStartTimeGmt
+            "event": {"eventType": "sleep"},
+            "activityName": "Test",
+        },
+    ]
+
+    result = BodyBatteryData.get("2023-07-20", client=mock_client)
+    # Should process valid items and skip invalid ones
+    assert len(result) == 1  # Only the valid item should be processed
+    assert result[0].event is not None
+
+
+def test_body_battery_data_get_unexpected_error():
+    """Test handling of unexpected errors during object creation."""
+    mock_client = MagicMock()
+
+    # Create a special object that raises an exception when accessed
+    class ExceptionRaisingDict(dict):
+        def get(self, key, default=None):
+            if key == "activityName":
+                raise RuntimeError("Unexpected error during object creation")
+            return super().get(key, default)
+
+    # Create mock data with problematic item
+    mock_response_item = ExceptionRaisingDict(
+        {
+            "event": {
+                "eventType": "sleep",
+                "eventStartTimeGmt": "2023-07-20T10:00:00.000Z",
+                "timezoneOffset": -25200000,
+                "durationInMilliseconds": 28800000,
+                "bodyBatteryImpact": 35,
+                "feedbackType": "good_sleep",
+                "shortFeedback": "Good sleep",
+            },
+            "activityName": None,
+            "activityType": None,
+            "activityId": None,
+            "averageStress": 15.5,
+            "stressValuesArray": [[1689811800000, 12]],
+            "bodyBatteryValuesArray": [[1689811800000, "charging", 45, 1.0]],
+        }
+    )
+
+    mock_client.connectapi.return_value = [mock_response_item]
+
+    result = BodyBatteryData.get("2023-07-20", client=mock_client)
+    # Should handle unexpected errors and return empty list
+    assert result == []
+
+
+================================================
+FILE: tests/data/test_hrv_data.py
+================================================
+from datetime import date
+
+import pytest
+
+from garth import HRVData
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_hrv_data_get(authed_client: Client):
+    hrv_data = HRVData.get("2023-07-20", client=authed_client)
+    assert hrv_data
+    assert hrv_data.user_profile_pk
+    assert hrv_data.hrv_summary.calendar_date == date(2023, 7, 20)
+
+    assert HRVData.get("2021-07-20", client=authed_client) is None
+
+
+@pytest.mark.vcr
+def test_hrv_data_list(authed_client: Client):
+    days = 2
+    end = date(2023, 7, 20)
+    hrv_data = HRVData.list(end, days, client=authed_client, max_workers=1)
+    assert len(hrv_data) == days
+    assert hrv_data[-1].hrv_summary.calendar_date == end
+
+
+================================================
+FILE: tests/data/test_sleep_data.py
+================================================
+from datetime import date
+
+import pytest
+
+from garth import SleepData
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_sleep_data_get(authed_client: Client):
+    sleep_data = SleepData.get("2021-07-20", client=authed_client)
+    assert sleep_data
+    assert sleep_data.daily_sleep_dto.calendar_date == date(2021, 7, 20)
+    assert sleep_data.daily_sleep_dto.sleep_start
+    assert sleep_data.daily_sleep_dto.sleep_end
+
+
+@pytest.mark.vcr
+def test_sleep_data_list(authed_client: Client):
+    end = date(2021, 7, 20)
+    days = 20
+    sleep_data = SleepData.list(end, days, client=authed_client, max_workers=1)
+    assert sleep_data[-1].daily_sleep_dto.calendar_date == end
+    assert len(sleep_data) == days
+
+
+================================================
+FILE: tests/data/test_weight_data.py
+================================================
+from datetime import date, timedelta, timezone
+
+import pytest
+
+from garth.data import WeightData
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_get_daily_weight_data(authed_client: Client):
+    weight_data = WeightData.get(date(2025, 6, 15), client=authed_client)
+    assert weight_data is not None
+    assert weight_data.source_type == "INDEX_SCALE"
+    assert weight_data.weight is not None
+    assert weight_data.bmi is not None
+    assert weight_data.body_fat is not None
+    assert weight_data.body_water is not None
+    assert weight_data.bone_mass is not None
+    assert weight_data.muscle_mass is not None
+    # Timezone should match your account settings, my case is -6
+    assert weight_data.datetime_local.tzinfo == timezone(timedelta(hours=-6))
+    assert weight_data.datetime_utc.tzinfo == timezone.utc
+
+
+@pytest.mark.vcr
+def test_get_manual_weight_data(authed_client: Client):
+    weight_data = WeightData.get(date(2025, 6, 14), client=authed_client)
+    assert weight_data is not None
+    assert weight_data.source_type == "MANUAL"
+    assert weight_data.weight is not None
+    assert weight_data.bmi is None
+    assert weight_data.body_fat is None
+    assert weight_data.body_water is None
+    assert weight_data.bone_mass is None
+    assert weight_data.muscle_mass is None
+
+
+@pytest.mark.vcr
+def test_get_nonexistent_weight_data(authed_client: Client):
+    weight_data = WeightData.get(date(2020, 1, 1), client=authed_client)
+    assert weight_data is None
+
+
+@pytest.mark.vcr
+def test_weight_data_list(authed_client: Client):
+    end = date(2025, 6, 15)
+    days = 15
+    weight_data = WeightData.list(end, days, client=authed_client)
+
+    # Only 4 weight entries recorded at time of test
+    assert len(weight_data) == 4
+    assert all(isinstance(data, WeightData) for data in weight_data)
+    assert all(
+        weight_data[i].datetime_utc <= weight_data[i + 1].datetime_utc
+        for i in range(len(weight_data) - 1)
+    )
+
+
+@pytest.mark.vcr
+def test_weight_data_list_single_day(authed_client: Client):
+    end = date(2025, 6, 14)
+    weight_data = WeightData.list(end, client=authed_client)
+    assert len(weight_data) == 2
+    assert all(isinstance(data, WeightData) for data in weight_data)
+    assert weight_data[0].source_type == "INDEX_SCALE"
+    assert weight_data[1].source_type == "MANUAL"
+
+
+@pytest.mark.vcr
+def test_weight_data_list_empty(authed_client: Client):
+    end = date(2020, 1, 1)
+    days = 15
+    weight_data = WeightData.list(end, days, client=authed_client)
+    assert len(weight_data) == 0
+
+
+================================================
+FILE: tests/stats/test_hrv.py
+================================================
+from datetime import date
+
+import pytest
+
+from garth import DailyHRV
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_daily_hrv(authed_client: Client):
+    end = date(2023, 7, 20)
+    days = 20
+    daily_hrv = DailyHRV.list(end, days, client=authed_client)
+    assert daily_hrv[-1].calendar_date == end
+    assert len(daily_hrv) == days
+
+
+@pytest.mark.vcr
+def test_daily_hrv_paginate(authed_client: Client):
+    end = date(2023, 7, 20)
+    days = 40
+    daily_hrv = DailyHRV.list(end, days, client=authed_client)
+    assert daily_hrv[-1].calendar_date == end
+    assert len(daily_hrv) == days
+
+
+@pytest.mark.vcr
+def test_daily_hrv_no_results(authed_client: Client):
+    end = date(1990, 7, 20)
+    daily_hrv = DailyHRV.list(end, client=authed_client)
+    assert daily_hrv == []
+
+
+@pytest.mark.vcr
+def test_daily_hrv_paginate_no_results(authed_client: Client):
+    end = date(1990, 7, 20)
+    days = 40
+    daily_hrv = DailyHRV.list(end, days, client=authed_client)
+    assert daily_hrv == []
+
+
+================================================
+FILE: tests/stats/test_hydration.py
+================================================
+from datetime import date
+
+import pytest
+
+from garth import DailyHydration
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_daily_hydration(authed_client: Client):
+    end = date(2024, 6, 29)
+    daily_hydration = DailyHydration.list(end, client=authed_client)
+    assert daily_hydration[-1].calendar_date == end
+    assert daily_hydration[-1].value_in_ml == 1750.0
+    assert daily_hydration[-1].goal_in_ml == 2800.0
+
+
+================================================
+FILE: tests/stats/test_intensity_minutes.py
+================================================
+from datetime import date
+
+import pytest
+
+from garth import DailyIntensityMinutes, WeeklyIntensityMinutes
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_daily_intensity_minutes(authed_client: Client):
+    end = date(2023, 7, 20)
+    days = 20
+    daily_im = DailyIntensityMinutes.list(end, days, client=authed_client)
+    assert daily_im[-1].calendar_date == end
+    assert len(daily_im) == days
+
+
+@pytest.mark.vcr
+def test_weekly_intensity_minutes(authed_client: Client):
+    end = date(2023, 7, 20)
+    weeks = 12
+    weekly_im = WeeklyIntensityMinutes.list(end, weeks, client=authed_client)
+    assert len(weekly_im) == weeks
+    assert (
+        weekly_im[-1].calendar_date.isocalendar()[
+            1
+        ]  # in python3.9+ [1] can be .week
+        == end.isocalendar()[1]
+    )
+
+
+================================================
+FILE: tests/stats/test_sleep_stats.py
+================================================
+from datetime import date
+
+import pytest
+
+from garth import DailySleep
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_daily_sleep(authed_client: Client):
+    end = date(2023, 7, 20)
+    days = 20
+    daily_sleep = DailySleep.list(end, days, client=authed_client)
+    assert daily_sleep[-1].calendar_date == end
+    assert len(daily_sleep) == days
+
+
+================================================
+FILE: tests/stats/test_steps.py
+================================================
+from datetime import date, timedelta
+
+import pytest
+
+from garth import DailySteps, WeeklySteps
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_daily_steps(authed_client: Client):
+    end = date(2023, 7, 20)
+    days = 20
+    daily_steps = DailySteps.list(end, days, client=authed_client)
+    assert daily_steps[-1].calendar_date == end
+    assert len(daily_steps) == days
+
+
+@pytest.mark.vcr
+def test_weekly_steps(authed_client: Client):
+    end = date(2023, 7, 20)
+    weeks = 52
+    weekly_steps = WeeklySteps.list(end, weeks, client=authed_client)
+    assert len(weekly_steps) == weeks
+    assert weekly_steps[-1].calendar_date == end - timedelta(days=6)
+
+
+================================================
+FILE: tests/stats/test_stress.py
+================================================
+from datetime import date, timedelta
+
+import pytest
+
+from garth import DailyStress, WeeklyStress
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_daily_stress(authed_client: Client):
+    end = date(2023, 7, 20)
+    days = 20
+    daily_stress = DailyStress.list(end, days, client=authed_client)
+    assert daily_stress[-1].calendar_date == end
+    assert len(daily_stress) == days
+
+
+@pytest.mark.vcr
+def test_daily_stress_pagination(authed_client: Client):
+    end = date(2023, 7, 20)
+    days = 60
+    daily_stress = DailyStress.list(end, days, client=authed_client)
+    assert len(daily_stress) == days
+
+
+@pytest.mark.vcr
+def test_weekly_stress(authed_client: Client):
+    end = date(2023, 7, 20)
+    weeks = 52
+    weekly_stress = WeeklyStress.list(end, weeks, client=authed_client)
+    assert len(weekly_stress) == weeks
+    assert weekly_stress[-1].calendar_date == end - timedelta(days=6)
+
+
+@pytest.mark.vcr
+def test_weekly_stress_pagination(authed_client: Client):
+    end = date(2023, 7, 20)
+    weeks = 60
+    weekly_stress = WeeklyStress.list(end, weeks, client=authed_client)
+    assert len(weekly_stress) == weeks
+    assert weekly_stress[-1].calendar_date == end - timedelta(days=6)
+
+
+@pytest.mark.vcr
+def test_weekly_stress_beyond_data(authed_client: Client):
+    end = date(2023, 7, 20)
+    weeks = 1000
+    weekly_stress = WeeklyStress.list(end, weeks, client=authed_client)
+    assert len(weekly_stress) < weeks
+
+
+================================================
+FILE: tests/test_auth_tokens.py
+================================================
+import time
+
+from garth.auth_tokens import OAuth2Token
+
+
+def test_is_expired(oauth2_token: OAuth2Token):
+    oauth2_token.expires_at = int(time.time() - 1)
+    assert oauth2_token.expired is True
+
+
+def test_refresh_is_expired(oauth2_token: OAuth2Token):
+    oauth2_token.refresh_token_expires_at = int(time.time() - 1)
+    assert oauth2_token.refresh_expired is True
+
+
+def test_str(oauth2_token: OAuth2Token):
+    assert str(oauth2_token) == "Bearer bar"
+
+
+================================================
+FILE: tests/test_cli.py
+================================================
+import builtins
+import getpass
+import sys
+
+import pytest
+
+from garth.cli import main
+
+
+def test_help_flag(monkeypatch, capsys):
+    # -h should print help and exit with code 0
+    monkeypatch.setattr(sys, "argv", ["garth", "-h"])
+    with pytest.raises(SystemExit) as excinfo:
+        main()
+    assert excinfo.value.code == 0
+    out, err = capsys.readouterr()
+    assert "usage:" in out.lower()
+
+
+def test_no_args_prints_help(monkeypatch, capsys):
+    # No args should print help and not exit
+    monkeypatch.setattr(sys, "argv", ["garth"])
+    main()
+    out, err = capsys.readouterr()
+    assert "usage:" in out.lower()
+
+
+@pytest.mark.vcr
+def test_login_command(monkeypatch, capsys):
+    def mock_input(prompt):
+        match prompt:
+            case "Email: ":
+                return "user@example.com"
+            case "MFA code: ":
+                code = "023226"
+                return code
+
+    monkeypatch.setattr(sys, "argv", ["garth", "login"])
+    monkeypatch.setattr(builtins, "input", mock_input)
+    monkeypatch.setattr(getpass, "getpass", lambda _: "correct_password")
+    main()
+    out, err = capsys.readouterr()
+    assert out
+    assert not err
+
+
+================================================
+FILE: tests/test_http.py
+================================================
+import tempfile
+import time
+from typing import Any, cast
+
+import pytest
+from requests.adapters import HTTPAdapter
+
+from garth.auth_tokens import OAuth1Token, OAuth2Token
+from garth.exc import GarthHTTPError
+from garth.http import Client
+
+
+def test_dump_and_load(authed_client: Client):
+    with tempfile.TemporaryDirectory() as tempdir:
+        authed_client.dump(tempdir)
+
+        new_client = Client()
+        new_client.load(tempdir)
+
+        assert new_client.oauth1_token == authed_client.oauth1_token
+        assert new_client.oauth2_token == authed_client.oauth2_token
+
+
+def test_dumps_and_loads(authed_client: Client):
+    s = authed_client.dumps()
+    new_client = Client()
+    new_client.loads(s)
+    assert new_client.oauth1_token == authed_client.oauth1_token
+    assert new_client.oauth2_token == authed_client.oauth2_token
+
+
+def test_configure_oauth2_token(client: Client, oauth2_token: OAuth2Token):
+    assert client.oauth2_token is None
+    client.configure(oauth2_token=oauth2_token)
+    assert client.oauth2_token == oauth2_token
+
+
+def test_configure_domain(client: Client):
+    assert client.domain == "garmin.com"
+    client.configure(domain="garmin.cn")
+    assert client.domain == "garmin.cn"
+
+
+def test_configure_proxies(client: Client):
+    assert client.sess.proxies == {}
+    proxy = {"https": "http://localhost:8888"}
+    client.configure(proxies=proxy)
+    assert client.sess.proxies["https"] == proxy["https"]
+
+
+def test_configure_ssl_verify(client: Client):
+    assert client.sess.verify is True
+    client.configure(ssl_verify=False)
+    assert client.sess.verify is False
+
+
+def test_configure_timeout(client: Client):
+    assert client.timeout == 10
+    client.configure(timeout=99)
+    assert client.timeout == 99
+
+
+def test_configure_retry(client: Client):
+    assert client.retries == 3
+    adapter = client.sess.adapters["https://"]
+    assert isinstance(adapter, HTTPAdapter)
+    assert adapter.max_retries.total == client.retries
+
+    client.configure(retries=99)
+    assert client.retries == 99
+    adapter = client.sess.adapters["https://"]
+    assert isinstance(adapter, HTTPAdapter)
+    assert adapter.max_retries.total == 99
+
+
+def test_configure_status_forcelist(client: Client):
+    assert client.status_forcelist == (408, 429, 500, 502, 503, 504)
+    adapter = client.sess.adapters["https://"]
+    assert isinstance(adapter, HTTPAdapter)
+    assert adapter.max_retries.status_forcelist == client.status_forcelist
+
+    client.configure(status_forcelist=(200, 201, 202))
+    assert client.status_forcelist == (200, 201, 202)
+    adapter = client.sess.adapters["https://"]
+    assert isinstance(adapter, HTTPAdapter)
+    assert adapter.max_retries.status_forcelist == client.status_forcelist
+
+
+def test_configure_backoff_factor(client: Client):
+    assert client.backoff_factor == 0.5
+    adapter = client.sess.adapters["https://"]
+    assert isinstance(adapter, HTTPAdapter)
+    assert adapter.max_retries.backoff_factor == client.backoff_factor
+
+    client.configure(backoff_factor=0.99)
+    assert client.backoff_factor == 0.99
+    adapter = client.sess.adapters["https://"]
+    assert isinstance(adapter, HTTPAdapter)
+    assert adapter.max_retries.backoff_factor == client.backoff_factor
+
+
+def test_configure_pool_maxsize(client: Client):
+    assert client.pool_maxsize == 10
+    client.configure(pool_maxsize=99)
+    assert client.pool_maxsize == 99
+    adapter = client.sess.adapters["https://"]
+    assert isinstance(adapter, HTTPAdapter)
+    assert adapter.poolmanager.connection_pool_kw["maxsize"] == 99
+
+
+def test_configure_pool_connections(client: Client):
+    client.configure(pool_connections=99)
+    assert client.pool_connections == 99
+    adapter = client.sess.adapters["https://"]
+    assert isinstance(adapter, HTTPAdapter)
+    assert getattr(adapter, "_pool_connections", None) == 99, (
+        "Pool connections not properly configured"
+    )
+
+
+@pytest.mark.vcr
+def test_client_request(client: Client):
+    resp = client.request("GET", "connect", "/")
+    assert resp.ok
+
+    with pytest.raises(GarthHTTPError) as e:
+        client.request("GET", "connectapi", "/")
+    assert "404" in str(e.value)
+
+
+@pytest.mark.vcr
+def test_login_success_mfa(monkeypatch, client: Client):
+    def mock_input(_):
+        return "327751"
+
+    monkeypatch.setattr("builtins.input", mock_input)
+
+    assert client.oauth1_token is None
+    assert client.oauth2_token is None
+    client.login("user@example.com", "correct_password")
+    assert client.oauth1_token
+    assert client.oauth2_token
+
+
+@pytest.mark.vcr
+def test_username(authed_client: Client):
+    assert authed_client._user_profile is None
+    assert authed_client.username
+    assert authed_client._user_profile
+
+
+@pytest.mark.vcr
+def test_profile_alias(authed_client: Client):
+    assert authed_client._user_profile is None
+    profile = authed_client.profile
+    assert profile == authed_client.user_profile
+    assert authed_client._user_profile is not None
+
+
+@pytest.mark.vcr
+def test_connectapi(authed_client: Client):
+    stress = cast(
+        list[dict[str, Any]],
+        authed_client.connectapi(
+            "/usersummary-service/stats/stress/daily/2023-07-21/2023-07-21"
+        ),
+    )
+    assert stress
+    assert isinstance(stress, list)
+    assert len(stress) == 1
+    assert stress[0]["calendarDate"] == "2023-07-21"
+    assert list(stress[0]["values"].keys()) == [
+        "highStressDuration",
+        "lowStressDuration",
+        "overallStressLevel",
+        "restStressDuration",
+        "mediumStressDuration",
+    ]
+
+
+@pytest.mark.vcr
+def test_refresh_oauth2_token(authed_client: Client):
+    assert authed_client.oauth2_token and isinstance(
+        authed_client.oauth2_token, OAuth2Token
+    )
+    authed_client.oauth2_token.expires_at = int(time.time())
+    assert authed_client.oauth2_token.expired
+    profile = authed_client.connectapi("/userprofile-service/socialProfile")
+    assert profile
+    assert isinstance(profile, dict)
+    assert profile["userName"]
+
+
+@pytest.mark.vcr
+def test_download(authed_client: Client):
+    downloaded = authed_client.download(
+        "/download-service/files/activity/11998957007"
+    )
+    assert downloaded
+    zip_magic_number = b"\x50\x4b\x03\x04"
+    assert downloaded[:4] == zip_magic_number
+
+
+@pytest.mark.vcr
+def test_upload(authed_client: Client):
+    fpath = "tests/12129115726_ACTIVITY.fit"
+    with open(fpath, "rb") as f:
+        uploaded = authed_client.upload(f)
+    assert uploaded
+
+
+@pytest.mark.vcr
+def test_delete(authed_client: Client):
+    activity_id = "12135235656"
+    path = f"/activity-service/activity/{activity_id}"
+    assert authed_client.connectapi(path)
+    authed_client.delete(
+        "connectapi",
+        path,
+        api=True,
+    )
+    with pytest.raises(GarthHTTPError) as e:
+        authed_client.connectapi(path)
+    assert "404" in str(e.value)
+
+
+@pytest.mark.vcr
+def test_put(authed_client: Client):
+    data = [
+        {
+            "changeState": "CHANGED",
+            "trainingMethod": "HR_RESERVE",
+            "lactateThresholdHeartRateUsed": 170,
+            "maxHeartRateUsed": 185,
+            "restingHrAutoUpdateUsed": False,
+            "sport": "DEFAULT",
+            "zone1Floor": 130,
+            "zone2Floor": 140,
+            "zone3Floor": 150,
+            "zone4Floor": 160,
+            "zone5Floor": 170,
+        }
+    ]
+    path = "/biometric-service/heartRateZones"
+    authed_client.put(
+        "connectapi",
+        path,
+        api=True,
+        json=data,
+    )
+    assert authed_client.connectapi(path)
+
+
+@pytest.mark.vcr
+def test_resume_login(client: Client):
+    result = client.login(
+        "example@example.com",
+        "correct_password",
+        return_on_mfa=True,
+    )
+
+    assert isinstance(result, tuple)
+    result_type, client_state = result
+
+    assert isinstance(client_state, dict)
+    assert result_type == "needs_mfa"
+    assert "signin_params" in client_state
+    assert "client" in client_state
+
+    code = "123456"  # obtain from custom login
+
+    # test resuming the login
+    oauth1, oauth2 = client.resume_login(client_state, code)
+
+    assert oauth1
+    assert isinstance(oauth1, OAuth1Token)
+    assert oauth2
+    assert isinstance(oauth2, OAuth2Token)
+
+
+================================================
+FILE: tests/test_sso.py
+================================================
+import time
+
+import pytest
+
+from garth import sso
+from garth.auth_tokens import OAuth1Token, OAuth2Token
+from garth.exc import GarthException, GarthHTTPError
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_login_email_password_fail(client: Client):
+    with pytest.raises(GarthHTTPError):
+        sso.login("user@example.com", "wrong_p@ssword", client=client)
+
+
+@pytest.mark.vcr
+def test_login_success(client: Client):
+    oauth1, oauth2 = sso.login(
+        "user@example.com", "correct_password", client=client
+    )
+
+    assert oauth1
+    assert isinstance(oauth1, OAuth1Token)
+    assert oauth2
+    assert isinstance(oauth2, OAuth2Token)
+
+
+@pytest.mark.vcr
+def test_login_success_mfa(monkeypatch, client: Client):
+    def mock_input(_):
+        return "671091"
+
+    monkeypatch.setattr("builtins.input", mock_input)
+    oauth1, oauth2 = sso.login(
+        "user@example.com", "correct_password", client=client
+    )
+
+    assert oauth1
+    assert isinstance(oauth1, OAuth1Token)
+    assert oauth2
+    assert isinstance(oauth2, OAuth2Token)
+
+
+@pytest.mark.vcr
+def test_login_success_mfa_async(monkeypatch, client: Client):
+    def mock_input(_):
+        return "031174"
+
+    async def prompt_mfa():
+        return input("MFA code: ")
+
+    monkeypatch.setattr("builtins.input", mock_input)
+    oauth1, oauth2 = sso.login(
+        "user@example.com",
+        "correct_password",
+        client=client,
+        prompt_mfa=prompt_mfa,
+    )
+
+    assert oauth1
+    assert isinstance(oauth1, OAuth1Token)
+    assert oauth2
+    assert isinstance(oauth2, OAuth2Token)
+
+
+@pytest.mark.vcr
+def test_login_mfa_fail(client: Client):
+    with pytest.raises(GarthException):
+        oauth1, oauth2 = sso.login(
+            "user@example.com",
+            "correct_password",
+            client=client,
+            prompt_mfa=lambda: "123456",
+        )
+
+
+@pytest.mark.vcr
+def test_login_return_on_mfa(client: Client):
+    result = sso.login(
+        "user@example.com",
+        "correct_password",
+        client=client,
+        return_on_mfa=True,
+    )
+
+    assert isinstance(result, tuple)
+    result_type, client_state = result
+
+    assert isinstance(client_state, dict)
+    assert result_type == "needs_mfa"
+    assert "signin_params" in client_state
+    assert "client" in client_state
+
+    code = "123456"  # obtain from custom login
+
+    # test resuming the login
+    oauth1, oauth2 = sso.resume_login(client_state, code)
+
+    assert oauth1
+    assert isinstance(oauth1, OAuth1Token)
+    assert oauth2
+    assert isinstance(oauth2, OAuth2Token)
+
+
+def test_set_expirations(oauth2_token_dict: dict):
+    token = sso.set_expirations(oauth2_token_dict)
+    assert (
+        token["expires_at"] - time.time() - oauth2_token_dict["expires_in"] < 1
+    )
+    assert (
+        token["refresh_token_expires_at"]
+        - time.time()
+        - oauth2_token_dict["refresh_token_expires_in"]
+        < 1
+    )
+
+
+@pytest.mark.vcr
+def test_exchange(authed_client: Client):
+    assert authed_client.oauth1_token and isinstance(
+        authed_client.oauth1_token, OAuth1Token
+    )
+    oauth1_token = authed_client.oauth1_token
+    oauth2_token = sso.exchange(oauth1_token, client=authed_client)
+    assert not oauth2_token.expired
+    assert not oauth2_token.refresh_expired
+    assert oauth2_token.token_type.title() == "Bearer"
+    assert authed_client.oauth2_token != oauth2_token
+
+
+def test_get_csrf_token():
+    html = """
+    <html>
+    <head>
+    </head>
+    <body>
+    <h1>Success</h1>
+    <input name="_csrf"    value="foo">
+    </body>
+    </html>
+    """
+    assert sso.get_csrf_token(html) == "foo"
+
+
+def test_get_csrf_token_fail():
+    html = """
+    <html>
+    <head>
+    </head>
+    <body>
+    <h1>Success</h1>
+    </body>
+    </html>
+    """
+    with pytest.raises(GarthException):
+        sso.get_csrf_token(html)
+
+
+def test_get_title():
+    html = """
+    <html>
+    <head>
+    <title>Success</title>
+    </head>
+    <body>
+    <h1>Success</h1>
+    </body>
+    </html>
+    """
+    assert sso.get_title(html) == "Success"
+
+
+def test_get_title_fail():
+    html = """
+    <html>
+    <head>
+    </head>
+    <body>
+    <h1>Success</h1>
+    </body>
+    </html>
+    """
+    with pytest.raises(GarthException):
+        sso.get_title(html)
+
+
+================================================
+FILE: tests/test_users.py
+================================================
+import pytest
+
+from garth import UserProfile, UserSettings
+from garth.http import Client
+
+
+@pytest.mark.vcr
+def test_user_profile(authed_client: Client):
+    profile = UserProfile.get(client=authed_client)
+    assert profile.user_name
+
+
+@pytest.mark.vcr
+def test_user_settings(authed_client: Client):
+    settings = UserSettings.get(client=authed_client)
+    assert settings.user_data
+
+
+@pytest.mark.vcr
+def test_user_settings_sleep_windows(authed_client: Client):
+    settings = UserSettings.get(client=authed_client)
+    assert settings.user_data
+    assert isinstance(settings.user_sleep_windows, list)
+    for window in settings.user_sleep_windows:
+        assert hasattr(window, "sleep_window_frequency")
+        assert hasattr(window, "start_sleep_time_seconds_from_midnight")
+        assert hasattr(window, "end_sleep_time_seconds_from_midnight")
+
+
+================================================
+FILE: tests/test_utils.py
+================================================
+from dataclasses import dataclass
+from datetime import date, datetime
+
+from garth.utils import (
+    asdict,
+    camel_to_snake,
+    camel_to_snake_dict,
+    format_end_date,
+)
+
+
+def test_camel_to_snake():
+    assert camel_to_snake("hiThereHuman") == "hi_there_human"
+
+
+def test_camel_to_snake_dict():
+    assert camel_to_snake_dict({"hiThereHuman": "hi"}) == {
+        "hi_there_human": "hi"
+    }
+
+
+def test_format_end_date():
+    assert format_end_date("2021-01-01") == date(2021, 1, 1)
+    assert format_end_date(None) == date.today()
+    assert format_end_date(date(2021, 1, 1)) == date(2021, 1, 1)
+
+
+@dataclass
+class AsDictTestClass:
+    name: str
+    age: int
+    birth_date: date
+
+
+def test_asdict():
+    # Test for dataclass instance
+    instance = AsDictTestClass("Test", 20, date.today())
+    assert asdict(instance) == {
+        "name": "Test",
+        "age": 20,
+        "birth_date": date.today().isoformat(),
+    }
+
+    # Test for list of dataclass instances
+    instances = [
+        AsDictTestClass("Test1", 20, date.today()),
+        AsDictTestClass("Test2", 30, date.today()),
+    ]
+    expected_output = [
+        {"name": "Test1", "age": 20, "birth_date": date.today().isoformat()},
+        {"name": "Test2", "age": 30, "birth_date": date.today().isoformat()},
+    ]
+    assert asdict(instances) == expected_output
+
+    # Test for date instance
+    assert asdict(date.today()) == date.today().isoformat()
+
+    # Test for datetime instance
+    now = datetime.now()
+    assert asdict(now) == now.isoformat()
+
+    # Test for regular types
+    assert asdict("Test") == "Test"
+    assert asdict(123) == 123
+    assert asdict(None) is None

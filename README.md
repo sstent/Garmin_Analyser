@@ -37,84 +37,105 @@ pip install weasyprint
 
 ### Basic Usage
 
+The application uses a subcommand-based CLI structure. Here are some basic examples:
+
 Analyze a single workout file:
 ```bash
-python main.py --file path/to/workout.fit --report --charts
+python main.py analyze --file path/to/workout.fit --report --charts
 ```
 
 Analyze all workouts in a directory:
 ```bash
-python main.py --directory path/to/workouts --summary --format html
+python main.py batch --directory path/to/workouts --summary --format html
 ```
 
-Download from Garmin Connect:
+Download and analyze latest workout from Garmin Connect:
 ```bash
-python main.py --garmin-connect --report --charts --summary
+python main.py analyze --garmin-connect --report --charts
+```
+
+Download all cycling activities from Garmin Connect:
+```bash
+python main.py download --all --limit 100 --output-dir data/garmin_downloads
+```
+
+Re-analyze previously downloaded workouts:
+```bash
+python main.py reanalyze --input-dir data/garmin_downloads --output-dir reports/reanalysis --charts --report
+```
+
+Show current configuration:
+```bash
+python main.py config --show
 ```
 
 ### Command Line Options
 
+For a full list of commands and options, run:
+```bash
+python main.py --help
+python main.py [command] --help
 ```
-usage: main.py [-h] [--config CONFIG] [--verbose]
-               (--file FILE | --directory DIRECTORY | --garmin-connect | --workout-id WORKOUT_ID | --download-all | --reanalyze-all)
-               [--ftp FTP] [--max-hr MAX_HR] [--zones ZONES] [--cog COG]
-               [--output-dir OUTPUT_DIR] [--format {html,pdf,markdown}]
-               [--charts] [--report] [--summary]
+
+Example output for `python main.py --help`:
+```
+usage: main.py [-h] [--verbose] {analyze,batch,download,reanalyze,config} ...
 
 Analyze Garmin workout data from files or Garmin Connect
 
+positional arguments:
+  {analyze,batch,download,reanalyze,config}
+                        Available commands
+    analyze             Analyze a single workout or download from Garmin Connect
+    batch               Analyze multiple workout files in a directory
+    download            Download activities from Garmin Connect
+    reanalyze           Re-analyze all downloaded activities
+    config              Manage configuration
+
 options:
   -h, --help            show this help message and exit
-  --config CONFIG, -c CONFIG
-                        Configuration file path
   --verbose, -v         Enable verbose logging
+```
 
-Input options:
+Example output for `python main.py analyze --help`:
+```
+usage: main.py analyze [-h] [--file FILE] [--garmin-connect] [--workout-id WORKOUT_ID]
+                       [--ftp FTP] [--max-hr MAX_HR] [--zones ZONES] [--cog COG]
+                       [--output-dir OUTPUT_DIR] [--format {html,pdf,markdown}]
+                       [--charts] [--report]
+
+Analyze a single workout or download from Garmin Connect
+
+options:
+  -h, --help            show this help message and exit
   --file FILE, -f FILE  Path to workout file (FIT, TCX, or GPX)
-  --directory DIRECTORY, -d DIRECTORY
-                        Directory containing workout files
-  --garmin-connect      Download from Garmin Connect
+  --garmin-connect      Download and analyze latest workout from Garmin Connect
   --workout-id WORKOUT_ID
                         Analyze specific workout by ID from Garmin Connect
-  --download-all        Download all cycling activities from Garmin Connect (no analysis)
-  --reanalyze-all       Re-analyze all downloaded activities and generate reports
-
-Analysis options:
   --ftp FTP             Functional Threshold Power (W)
   --max-hr MAX_HR       Maximum heart rate (bpm)
   --zones ZONES         Path to zones configuration file
   --cog COG             Cog size (teeth) for power calculations. Auto-detected if not provided
-
-Output options:
   --output-dir OUTPUT_DIR
                         Output directory for reports and charts
   --format {html,pdf,markdown}
                         Report format
   --charts              Generate charts
   --report              Generate comprehensive report
-  --summary             Generate summary report for multiple workouts
-
-Examples:
-  Analyze latest workout from Garmin Connect: python main.py --garmin-connect
-  Analyze specific workout by ID: python main.py --workout-id 123456789
-  Download all cycling workouts: python main.py --download-all
-  Re-analyze all downloaded workouts: python main.py --reanalyze-all
-  Analyze local FIT file: python main.py --file path/to/workout.fit
-  Analyze directory of workouts: python main.py --directory data/
-
-Configuration:
-  Set Garmin credentials in .env file: GARMIN_EMAIL and GARMIN_PASSWORD
-  Configure zones in config/config.yaml or use --zones flag
-  Override FTP with --ftp flag, max HR with --max-hr flag
-
-Output:
-  Reports saved to output/ directory by default
-  Charts saved to output/charts/ when --charts is used
 ```
+
+### Configuration:
+Set Garmin credentials in `.env` file: `GARMIN_EMAIL` and `GARMIN_PASSWORD`.
+Configure zones in `config/config.yaml` or use `--zones` flag.
+Override FTP with `--ftp` flag, max HR with `--max-hr` flag.
+
+### Output:
+Reports saved to `output/` directory by default.
+Charts saved to `output/charts/` when `--charts` is used.
 
 ## Deprecation Notice
 
-The Text User Interface (TUI) and legacy analyzer have been removed in favor of the more robust and maintainable modular command-line interface (CLI). The project now relies exclusively on the modular CLI (`main.py` and `cli.py`) for all operations. All functionality from the legacy components has been successfully migrated to the modular stack.
+The Text User Interface (TUI) and legacy analyzer have been removed in favor of the more robust and maintainable modular command-line interface (CLI) implemented solely in `main.py`. The `cli.py` file has been removed. All functionality from the legacy components has been successfully migrated to the modular stack.
 
 ## Setup credentials
 
