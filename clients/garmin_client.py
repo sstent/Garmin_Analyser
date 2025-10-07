@@ -140,7 +140,8 @@ class GarminClient:
             
             if fmt_upper in {"TCX", "GPX", "CSV"}:
                 # Direct format downloads supported by garminconnect
-                file_data = self.client.download_activity(activity_id, dl_fmt=fmt_upper)
+                dl_fmt = getattr(self.client.ActivityDownloadFormat, fmt_upper)
+                file_data = self.client.download_activity(activity_id, dl_fmt=dl_fmt)
                 
                 # Save to file using lowercase extension
                 filename = f"activity_{activity_id}.{fmt_upper.lower()}"
@@ -191,19 +192,19 @@ class GarminClient:
             # 1) Prefer native method when available
             if has_native_original:
                 try:
-                    attempts.append("self.client.download_activity_original(activity_id)")
-                    logger.debug(f"Attempting native download_activity_original for activity {activity_id}")
-                    file_data = self.client.download_original_activity(activity_id)
+                    attempts.append("self.client.download_original_activity(activity_id)")
+                    logger.debug(f"Attempting native download_original_activity for activity {activity_id}")
+                    file_data = self.client.download_activity_original(activity_id)
                 except Exception as e:
-                    logger.debug(f"Native download_activity_original failed: {e} (type={type(e).__name__})")
+                    logger.debug(f"Native download_original_activity failed: {e} (type={type(e).__name__})")
                     file_data = None
             
             # 2) Try download_activity with 'original' format
             if file_data is None and hasattr(self.client, 'download_activity'):
                 try:
-                    attempts.append("self.client.download_activity(activity_id, dl_fmt='original')")
-                    logger.debug(f"Attempting original download via download_activity(dl_fmt='original') for activity {activity_id}")
-                    file_data = self.client.download_activity(activity_id, dl_fmt='original')
+                    attempts.append("self.client.download_activity(activity_id, dl_fmt=self.client.ActivityDownloadFormat.ORIGINAL)")
+                    logger.debug(f"Attempting original download via download_activity(dl_fmt=self.client.ActivityDownloadFormat.ORIGINAL) for activity {activity_id}")
+                    file_data = self.client.download_activity(activity_id, dl_fmt=self.client.ActivityDownloadFormat.ORIGINAL)
                     logger.debug(f"download_activity(dl_fmt='original') succeeded, got data type: {type(file_data).__name__}, length: {len(file_data) if hasattr(file_data, '__len__') else 'N/A'}")
                     if file_data is not None and hasattr(file_data, '__len__') and len(file_data) > 0:
                         logger.debug(f"First 100 bytes: {file_data[:100]}")
