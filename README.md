@@ -26,6 +26,15 @@ A comprehensive Python application for analyzing Garmin workout data from FIT, T
 pip install -r requirements.txt
 ```
 
+### Database Setup (New Feature)
+
+The application now uses SQLite with Alembic for database migrations to track downloaded activities. To initialize the database:
+
+```bash
+# Run database migrations
+alembic upgrade head
+```
+
 ### Optional Dependencies
 
 For PDF report generation:
@@ -59,9 +68,24 @@ Download all cycling activities from Garmin Connect:
 python main.py download --all --limit 100 --output-dir data/garmin_downloads
 ```
 
+Download only missing activities (not already in database or filesystem):
+```bash
+python main.py download --missing --output-dir data/garmin_downloads
+```
+
+Dry-run to see what would be downloaded without actually downloading:
+```bash
+python main.py download --missing --dry-run --output-dir data/garmin_downloads
+```
+
 Re-analyze previously downloaded workouts:
 ```bash
 python main.py reanalyze --input-dir data/garmin_downloads --output-dir reports/reanalysis --charts --report
+```
+
+Force re-download of specific activity (bypasses database tracking):
+```bash
+python main.py download --workout-id 123456789 --force
 ```
 
 Show current configuration:
@@ -111,17 +135,20 @@ options:
   --file FILE, -f FILE  Path to workout file (FIT, TCX, or GPX)
   --garmin-connect      Download and analyze latest workout from Garmin Connect
   --workout-id WORKOUT_ID
-                        Analyze specific workout by ID from Garmin Connect
+                         Analyze specific workout by ID from Garmin Connect
   --ftp FTP             Functional Threshold Power (W)
   --max-hr MAX_HR       Maximum heart rate (bpm)
   --zones ZONES         Path to zones configuration file
   --cog COG             Cog size (teeth) for power calculations. Auto-detected if not provided
   --output-dir OUTPUT_DIR
-                        Output directory for reports and charts
+                         Output directory for reports and charts
   --format {html,pdf,markdown}
-                        Report format
+                         Report format
   --charts              Generate charts
   --report              Generate comprehensive report
+  --force               Force download even if activity already exists in database
+  --missing             Download only activities not already in database or filesystem
+  --dry-run             Show what would be downloaded without actually downloading
 ```
 
 ### Configuration:
@@ -171,6 +198,40 @@ Note on app passwords:
 Parity and unaffected behavior:
 - Authentication and download parity is maintained. Original ZIP downloads and FIT extraction workflows are unchanged in [clients/garmin_client.py](clients/garmin_client.py).
 - Alternate format downloads (FIT, TCX, GPX) are unaffected by this credentials change.
+
+## Database Tracking
+
+The application now tracks downloaded activities in a SQLite database (`garmin_analyser.db`) to avoid redundant downloads and provide download history.
+
+### Database Schema
+
+The database tracks:
+- Activity ID and metadata
+- Download status and timestamps
+- File checksums and sizes
+- Error information for failed downloads
+
+### Database Location
+
+By default, the database is stored at:
+- `garmin_analyser.db` in the project root directory
+
+### Migration Commands
+
+```bash
+# Initialize database schema
+alembic upgrade head
+
+# Create new migration (for developers)
+alembic revision --autogenerate -m "description"
+
+# Check migration status
+alembic current
+
+# Downgrade database
+alembic downgrade -1
+```
+
 ## Configuration
 
 ### Basic Configuration
@@ -306,6 +367,15 @@ python main.py --garmin-connect --report --charts --summary
 
 # Download specific period
 python main.py --garmin-connect --report --output-dir reports/january/
+
+# Download only missing activities (smart sync)
+python main.py download --missing --output-dir data/garmin_downloads
+
+# Preview what would be downloaded (dry-run)
+python main.py download --missing --dry-run --output-dir data/garmin_downloads
+
+# Force re-download of all activities (bypass database)
+python main.py download --all --force --output-dir data/garmin_downloads
 ```
 
 ## Output Structure
@@ -324,6 +394,9 @@ output/
 │   └── summary_report_20240115_143022.html
 └── logs/
     └── garmin_analyser.log
+
+garmin_analyser.db          # SQLite database for download tracking
+alembic/                    # Database migration scripts
 ```
 
 ## Analysis Features
@@ -441,6 +514,10 @@ def generate_custom_chart(self, workout: WorkoutData, analysis: dict) -> str:
 **Performance Issues**
 - For large datasets, use batch processing
 - Consider using `--summary` flag for multiple files
+
+**Database Issues**
+- If database becomes corrupted, delete `garmin_analyser.db` and run `alembic upgrade head`
+- Check database integrity: `sqlite3 garmin_analyser.db "PRAGMA integrity_check;"`
 
 ### Debug Mode
 

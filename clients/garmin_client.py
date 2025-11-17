@@ -6,21 +6,104 @@ import zipfile
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import logging
+import hashlib
+from datetime import datetime
+
+import time
+from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 try:
     from garminconnect import Garmin
 except ImportError:
     raise ImportError("garminconnect package required. Install with: pip install garminconnect")
 
-from config.settings import get_garmin_credentials, DATA_DIR
+from config.settings import get_garmin_credentials, DATA_DIR, DATABASE_URL
+from db.models import ActivityDownload
+from db.session import SessionLocal
+
 
 logger = logging.getLogger(__name__)
 
 
+def calculate_sha256(file_path: Path) -> str:
+    """Calculate the SHA256 checksum of a file."""
+    hasher = hashlib.sha256()
+    with open(file_path, 'rb') as f:
+        while True:
+            chunk = f.read(8192)  # Read in 8KB chunks
+            if not chunk:
+                break
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def upsert_activity_download(
+    activity_id: int,
+    source: str,
+    file_path: Path,
+    file_format: str,
+    status: str,
+    http_status: Optional[int] = None,
+    etag: Optional[str] = None,
+    last_modified: Optional[datetime] = None,
+    size_bytes: Optional[int] = None,
+    checksum_sha256: Optional[str] = None,
+    error_message: Optional[str] = None,
+    db_session: Optional[Session] = None,
+):
+    """Upsert an activity download record in the database."""
+    if db_session is not None:
+        db = db_session
+        close_session = False
+    else:
+        db = SessionLocal()
+        close_session = True
+
+    try:
+        record = db.query(ActivityDownload).filter_by(activity_id=activity_id).first()
+        if record:
+            record.source = source
+            record.file_path = str(file_path)
+            record.file_format = file_format
+            record.status = status
+            record.http_status = http_status
+            record.etag = etag
+            record.last_modified = last_modified
+            record.size_bytes = size_bytes
+            record.checksum_sha256 = checksum_sha256
+            record.updated_at = datetime.utcnow()
+            record.error_message = error_message
+        else:
+            record = ActivityDownload(
+                activity_id=activity_id,
+                source=source,
+                file_path=str(file_path),
+                file_format=file_format,
+                status=status,
+                http_status=http_status,
+                etag=etag,
+                last_modified=last_modified,
+                size_bytes=size_bytes,
+                checksum_sha256=checksum_sha256,
+                downloaded_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+                error_message=error_message,
+            )
+            db.add(record)
+        db.commit()
+        db.refresh(record)
+    finally:
+        if close_session:
+            db.close()
+    return record
+
+
 class GarminClient:
     """Client for interacting with Garmin Connect API."""
-    
-    def __init__(self, email: Optional[str] = None, password: Optional[str] = None):
+
+    def __init__(self, email: Optional[str] = None, password: Optional[str] = None, db_session: Optional[Session] = None):
         """Initialize Garmin client.
 
         Args:
@@ -32,6 +115,8 @@ class GarminClient:
             self.password = password
         else:
             self.email, self.password = get_garmin_credentials()
+
+        self.db_session = db_session if db_session else SessionLocal()
         
         self.client = None
         self._authenticated = False
@@ -117,13 +202,16 @@ class GarminClient:
             logger.error(f"Failed to get activity {activity_id}: {e}")
             return None
     
-    def download_activity_file(self, activity_id: str, file_format: str = "fit") -> Optional[Path]:
+    def download_activity_file(
+        self, activity_id: str, file_format: str = "fit", force_download: bool = False
+    ) -> Optional[Path]:
         """Download activity file in specified format.
-        
+
         Args:
             activity_id: Garmin activity ID
             file_format: File format to download (fit, tcx, gpx, csv, original)
-            
+            force_download: If True, bypasses database checks and forces a re-download.
+
         Returns:
             Path to downloaded file or None if download failed
         """
@@ -155,7 +243,9 @@ class GarminClient:
 
             # FIT is not a direct dl_fmt in some client versions; use ORIGINAL to obtain ZIP and extract .fit
             if fmt_upper in {"FIT", "ORIGINAL"} or file_format.lower() == "fit":
-                fit_path = self.download_activity_original(activity_id)
+                fit_path = self.download_activity_original(
+                    activity_id, force_download=force_download
+                )
                 return fit_path
 
             logger.error(f"Unsupported download format '{file_format}'. Valid: GPX, TCX, ORIGINAL, CSV")
@@ -165,11 +255,13 @@ class GarminClient:
             logger.error(f"Failed to download activity {activity_id}: {e}")
             return None
     
-    def download_activity_original(self, activity_id: str) -> Optional[Path]:
+    def download_activity_original(self, activity_id: str, force_download: bool = False, db_session: Optional[Session] = None) -> Optional[Path]:
         """Download original activity file (usually FIT format).
         
         Args:
             activity_id: Garmin activity ID
+            force_download: If True, bypasses database checks and forces a re-download.
+            db_session: Optional SQLAlchemy session to use for database operations.
             
         Returns:
             Path to downloaded file or None if download failed
@@ -177,6 +269,33 @@ class GarminClient:
         if not self.is_authenticated():
             if not self.authenticate():
                 return None
+        
+        db = db_session if db_session else self.db_session
+        if not db:
+            db = SessionLocal()
+            close_session = True
+        else:
+            close_session = False
+        try:
+            # Check database for existing record unless force_download is True
+            if not force_download:
+                record = db.query(ActivityDownload).filter_by(activity_id=int(activity_id)).first()
+                if record and record.status == "success" and Path(record.file_path).exists():
+                    current_checksum = calculate_sha256(Path(record.file_path))
+                    if current_checksum == record.checksum_sha256:
+                        logger.info(f"Activity {activity_id} already downloaded and verified; skipping.")
+                        return Path(record.file_path)
+                    else:
+                        logger.warning(f"Checksum mismatch for activity {activity_id}. Re-downloading.")
+
+        finally:
+            if close_session:
+                db.close()
+
+        download_status = "failed"
+        error_message = None
+        http_status = None
+        downloaded_path = None
         
         try:
             # Create data directory if it doesn't exist
@@ -249,7 +368,7 @@ class GarminClient:
                                 logger.debug(f"{method_name}(activity_id, '{fmt}') succeeded, got data type: {type(file_data).__name__}")
                                 break
                             except Exception as e:
-                                logger.debug(f"{method_name}(activity_id, '{fmt}') failed: {e} (type={type(e).__name__})")
+                                logger.debug(f"Attempting {method_name}(activity_id, '{fmt}') failed: {e} (type={type(e).__name__})")
                                 file_data = None
                         if file_data is not None:
                             break
@@ -265,7 +384,7 @@ class GarminClient:
                             logger.debug(f"{method_name}(activity_id) succeeded, got data type: {type(file_data).__name__}")
                             break
                         except Exception as e:
-                            logger.debug(f"{method_name}(activity_id) failed: {e} (type={type(e).__name__})")
+                            logger.debug(f"Attempting {method_name}(activity_id) failed: {e} (type={type(e).__name__})")
                             file_data = None
             
             if file_data is None:
@@ -298,16 +417,29 @@ class GarminClient:
                                 content_type = getattr(resp, "headers", {}).get("Content-Type", "")
                                 logger.debug(f"HTTP fallback succeeded: status={status}, content-type='{content_type}', bytes={len(content)}")
                                 file_data = content
+                                http_status = status
                                 break
                             else:
                                 logger.debug(f"HTTP fallback GET {url} returned status={status} or empty content")
+                                http_status = status
                         except Exception as e:
                             logger.debug(f"HTTP fallback GET {url} failed: {e} (type={type(e).__name__})")
+                            error_message = str(e)
                 
                 if file_data is None:
                     logger.error(
                         f"Failed to obtain original/FIT data for activity {activity_id}. "
                         f"Attempts: {attempts}"
+                    )
+                    upsert_activity_download(
+                        activity_id=int(activity_id),
+                        source="garmin-connect",
+                        file_path=DATA_DIR / f"activity_{activity_id}.fit", # Placeholder path
+                        file_format="fit", # Assuming fit as target format
+                        status="failed",
+                        http_status=http_status,
+                        error_message=error_message or f"All download attempts failed: {attempts}",
+                        db_session=db
                     )
                     return None
             
@@ -326,6 +458,16 @@ class GarminClient:
             if not isinstance(file_data, (bytes, bytearray)):
                 logger.error(f"Downloaded data for activity {activity_id} is not bytes (type={type(file_data).__name__}); aborting")
                 logger.debug(f"Data content: {repr(file_data)[:200]}")
+                upsert_activity_download(
+                    activity_id=int(activity_id),
+                    source="garmin-connect",
+                    file_path=DATA_DIR / f"activity_{activity_id}.fit", # Placeholder path
+                    file_format="fit", # Assuming fit as target format
+                    status="failed",
+                    http_status=http_status,
+                    error_message=f"Downloaded data is not bytes: {type(file_data).__name__}",
+                    db_session=db
+                )
                 return None
             
             # Save to temporary file first
@@ -334,6 +476,9 @@ class GarminClient:
                 tmp_path = Path(tmp_file.name)
             
             # Determine if the response is a ZIP archive (original) or a direct FIT file
+            file_format_detected = "fit" # Default to fit
+            extracted_path = DATA_DIR / f"activity_{activity_id}.fit" # Default path
+            
             if zipfile.is_zipfile(tmp_path):
                 # Extract zip file
                 with zipfile.ZipFile(tmp_path, 'r') as zip_ref:
@@ -343,7 +488,6 @@ class GarminClient:
                     if fit_files:
                         # Extract the first FIT file
                         fit_filename = fit_files[0]
-                        extracted_path = DATA_DIR / f"activity_{activity_id}.fit"
                         
                         with zip_ref.open(fit_filename) as source, open(extracted_path, 'wb') as target:
                             target.write(source.read())
@@ -352,27 +496,60 @@ class GarminClient:
                         tmp_path.unlink()
                         
                         logger.info(f"Downloaded original activity file: {extracted_path}")
-                        return extracted_path
+                        downloaded_path = extracted_path
+                        download_status = "success"
                     else:
                         logger.warning("No FIT file found in downloaded archive")
                         tmp_path.unlink()
-                        return None
+                        error_message = "No FIT file found in downloaded archive"
             else:
                 # Treat data as direct FIT bytes
-                extracted_path = DATA_DIR / f"activity_{activity_id}.fit"
                 try:
                     tmp_path.rename(extracted_path)
+                    downloaded_path = extracted_path
+                    download_status = "success" # Consider copy as success if file is there
                 except Exception as move_err:
                     logger.debug(f"Rename temp FIT to destination failed ({move_err}); falling back to copy")
                     with open(extracted_path, 'wb') as target, open(tmp_path, 'rb') as source:
                         target.write(source.read())
                     tmp_path.unlink()
+                    downloaded_path = extracted_path
+                    download_status = "success" # Consider copy as success if file is there
                 logger.info(f"Downloaded original activity file: {extracted_path}")
-                return extracted_path
-                    
+            
         except Exception as e:
             logger.error(f"Failed to download original activity {activity_id}: {e} (type={type(e).__name__})")
-            return None
+            error_message = str(e)
+        finally:
+            if downloaded_path:
+                file_size = os.path.getsize(downloaded_path)
+                file_checksum = calculate_sha256(downloaded_path)
+                upsert_activity_download(
+                    activity_id=int(activity_id),
+                    source="garmin-connect",
+                    file_path=downloaded_path,
+                    file_format=file_format_detected,
+                    status=download_status,
+                    http_status=http_status,
+                    size_bytes=file_size,
+                    checksum_sha256=file_checksum,
+                    error_message=error_message,
+                    db_session=db
+                )
+            else:
+                upsert_activity_download(
+                    activity_id=int(activity_id),
+                    source="garmin-connect",
+                    file_path=DATA_DIR / f"activity_{activity_id}.fit", # Placeholder path
+                    file_format="fit", # Assuming fit as target format
+                    status="failed",
+                    http_status=http_status,
+                    error_message=error_message or "Unknown error during download",
+                    db_session=db
+                )
+            if close_session:
+                db.close()
+        return downloaded_path
     
     def get_activity_summary(self, activity_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed activity summary.
@@ -403,6 +580,44 @@ class GarminClient:
             logger.error(f"Failed to get activity summary for {activity_id}: {e}")
             return None
     
+    def get_all_activities(self, limit: int = 1000) -> List[Dict[str, Any]]:
+        """Get all activities from Garmin Connect.
+
+        Args:
+            limit: Maximum number of activities to retrieve
+
+        Returns:
+            List of activity dictionaries
+        """
+        if not self.is_authenticated():
+            if not self.authenticate():
+                return []
+
+        try:
+            activities = []
+            offset = 0
+            batch_size = 100
+
+            while offset < limit:
+                batch = self.client.get_activities(offset, min(batch_size, limit - offset))
+                if not batch:
+                    break
+
+                activities.extend(batch)
+
+                offset += len(batch)
+
+                # Stop if we got fewer activities than requested
+                if len(batch) < batch_size:
+                    break
+
+            logger.info(f"Found {len(activities)} activities")
+            return activities
+
+        except Exception as e:
+            logger.error(f"Failed to get activities: {e}")
+            return []
+
     def get_all_cycling_workouts(self, limit: int = 1000) -> List[Dict[str, Any]]:
         """Get all cycling activities from Garmin Connect.
         
@@ -481,15 +696,18 @@ class GarminClient:
             downloaded_path.rename(file_path)
             return True
         return False
-    def download_all_workouts(self, limit: int = 50, output_dir: Path = DATA_DIR) -> List[Dict[str, Path]]:
-        """Download up to 'limit' cycling workouts and save FIT files to output_dir.
+    def download_all_workouts(
+        self, limit: int = 50, output_dir: Path = DATA_DIR, force_download: bool = False
+    ) -> List[Dict[str, Path]]:
+        """Download up to 'limit' activities and save FIT files to output_dir.
 
-        Uses get_all_cycling_workouts() to list activities, then downloads each original
+        Uses get_all_activities() to list activities, then downloads each original
         activity archive and extracts the FIT file via download_activity_original().
 
         Args:
-            limit: Maximum number of cycling activities to download
+            limit: Maximum number of activities to download
             output_dir: Directory to save downloaded FIT files
+            force_download: If True, bypasses database checks and forces a re-download.
 
         Returns:
             List of dicts with 'file_path' pointing to downloaded FIT paths
@@ -501,9 +719,9 @@ class GarminClient:
 
         try:
             output_dir.mkdir(parents=True, exist_ok=True)
-            activities = self.get_all_cycling_workouts(limit=limit)
+            activities = self.get_all_activities(limit=limit) # Changed from get_all_cycling_workouts
             total = min(limit, len(activities))
-            logger.info(f"Preparing to download up to {total} cycling activities into {output_dir}")
+            logger.info(f"Preparing to download up to {total} activities into {output_dir}") # Changed from cycling activities
 
             results: List[Dict[str, Path]] = []
             for idx, activity in enumerate(activities[:limit], start=1):
@@ -516,25 +734,48 @@ class GarminClient:
                     logger.warning("Skipping activity with missing ID key (activityId/activity_id/id)")
                     continue
 
-                logger.debug(f"Downloading activity ID {activity_id} ({idx}/{total})")
-                src_path = self.download_activity_original(str(activity_id))
-                if src_path and src_path.exists():
-                    dest_path = output_dir / src_path.name
-                    try:
-                        if src_path.resolve() != dest_path.resolve():
-                            if dest_path.exists():
-                                # Overwrite existing destination to keep most recent download
-                                dest_path.unlink()
-                            src_path.rename(dest_path)
-                        else:
-                            # Already in the desired location
-                            pass
-                    except Exception as move_err:
-                        logger.error(f"Failed to move {src_path} to {dest_path}: {move_err}")
-                        dest_path = src_path  # fall back to original location
+                dest_path = output_dir / f"activity_{activity_id}.fit"
+                data_dir_path = DATA_DIR / f"activity_{activity_id}.fit"
 
-                    logger.info(f"Saved activity {activity_id} to {dest_path}")
+                if dest_path.exists():
+                    logger.info(f"Activity {activity_id} already exists in {output_dir}; skipping download.")
                     results.append({"file_path": dest_path})
+                    continue
+                elif data_dir_path.exists():
+                    logger.info(f"Activity {activity_id} found in {DATA_DIR}; moving to {output_dir} and skipping download.")
+                    try:
+                        data_dir_path.rename(dest_path)
+                        results.append({"file_path": dest_path})
+                        continue
+                    except Exception as move_err:
+                        logger.error(f"Failed to move {data_dir_path} to {dest_path}: {move_err}")
+                        # Fall through to download if move fails
+
+                logger.debug(f"Downloading activity ID {activity_id} ({idx}/{total})")
+                
+                # Add rate limiting
+                import time
+                time.sleep(1.0)
+
+                src_path = self.download_activity_original(
+                    str(activity_id), force_download=force_download, db_session=self.db_session
+                )
+                if src_path and src_path.exists():
+                    # Check if the downloaded file is already the desired destination
+                    if src_path.resolve() == dest_path.resolve():
+                        logger.info(f"Saved activity {activity_id} to {dest_path}")
+                        results.append({"file_path": dest_path})
+                    else:
+                        try:
+                            # If not, move it to the desired location
+                            if dest_path.exists():
+                                dest_path.unlink()  # Overwrite existing destination to keep most recent download
+                            src_path.rename(dest_path)
+                            logger.info(f"Saved activity {activity_id} to {dest_path}")
+                            results.append({"file_path": dest_path})
+                        except Exception as move_err:
+                            logger.error(f"Failed to move {src_path} to {dest_path}: {move_err}")
+                            results.append({"file_path": src_path})  # Fall back to original location
                 else:
                     logger.warning(f"Download returned no file for activity {activity_id}")
 
@@ -545,7 +786,9 @@ class GarminClient:
             logger.error(f"Failed during batch download: {e}")
             return []
 
-    def download_latest_workout(self, output_dir: Path = DATA_DIR) -> Optional[Path]:
+    def download_latest_workout(
+        self, output_dir: Path = DATA_DIR, force_download: bool = False
+    ) -> Optional[Path]:
         """Download the latest cycling workout and save FIT file to output_dir.
 
         Uses get_latest_activity('cycling') to find the most recent cycling activity,
@@ -553,6 +796,7 @@ class GarminClient:
 
         Args:
             output_dir: Directory to save the downloaded FIT file
+            force_download: If True, bypasses database checks and forces a re-download.
 
         Returns:
             Path to the downloaded FIT file or None if download failed
@@ -578,7 +822,9 @@ class GarminClient:
                 return None
 
             logger.info(f"Downloading latest cycling activity ID {activity_id}")
-            src_path = self.download_activity_original(str(activity_id))
+            src_path = self.download_activity_original(
+                str(activity_id), force_download=force_download, db_session=self.db_session
+            )
             if src_path and src_path.exists():
                 output_dir.mkdir(parents=True, exist_ok=True)
                 dest_path = output_dir / src_path.name

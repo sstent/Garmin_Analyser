@@ -17,6 +17,10 @@ BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR / "data"
 REPORTS_DIR = BASE_DIR / "reports"
 
+# Database settings
+DB_PATH = BASE_DIR / "garmin_analyser.db"
+DATABASE_URL = f"sqlite:///{DB_PATH}"
+
 # Create directories if they don't exist
 DATA_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)

@@ -53,5 +53,6 @@ setup(
     include_package_data=True,
     package_data={
         "garmin_analyser": ["config/*.yaml", "visualizers/templates/*.html", "visualizers/templates/*.md"],
+        "alembic": ["alembic.ini", "alembic/env.py", "alembic/script.py.mako", "alembic/versions/*.py"],
     },
 )

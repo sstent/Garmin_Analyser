@@ -133,17 +133,27 @@ def parse_args() -> argparse.Namespace:
     # Download command
     download_parser = subparsers.add_parser('download', help='Download activities from Garmin Connect')
     download_parser.add_argument(
-        '--all', action='store_true', help='Download all cycling activities'
+        '--all', action='store_true', help='Download all activities'
+    )
+    download_parser.add_argument(
+        '--missing', action='store_true', help='Download only missing activities (not already downloaded)'
     )
     download_parser.add_argument(
         '--workout-id', type=int, help='Download specific workout by ID'
     )
     download_parser.add_argument(
-        '--limit', type=int, default=50, help='Maximum number of activities to download (with --all)'
+        '--limit', type=int, default=50, help='Maximum number of activities to download (with --all or --missing)'
     )
     download_parser.add_argument(
         '--output-dir', type=str, default='data', help='Directory to save downloaded files'
     )
+    download_parser.add_argument(
+        '--force', action='store_true', help='Force re-download even if activity already tracked'
+    )
+    download_parser.add_argument(
+        '--dry-run', action='store_true', help='Show what would be downloaded without actually downloading'
+    )
+    # TODO: Add argument for --format {fit, tcx, gpx, csv, original} here in the future
     
     # Reanalyze command
     reanalyze_parser = subparsers.add_parser('reanalyze', help='Re-analyze all downloaded activities')
@@ -280,15 +290,75 @@ class GarminAnalyser:
         download_output_dir = Path(getattr(args, 'output_dir', 'data'))
         download_output_dir.mkdir(parents=True, exist_ok=True)
 
-        logging.debug(f"download_workouts: all={getattr(args, 'all', False)}, workout_id={getattr(args, 'workout_id', None)}, limit={getattr(args, 'limit', 50)}, output_dir={download_output_dir}")
+        logging.debug(f"download_workouts: all={getattr(args, 'all', False)}, missing={getattr(args, 'missing', False)}, workout_id={getattr(args, 'workout_id', None)}, limit={getattr(args, 'limit', 50)}, output_dir={download_output_dir}, dry_run={getattr(args, 'dry_run', False)}")
 
         downloaded_activities = []
-        if getattr(args, 'all', False):
-            logging.info(f"Downloading up to {getattr(args, 'limit', 50)} cycling activities...")
-            downloaded_activities = client.download_all_workouts(limit=getattr(args, 'limit', 50), output_dir=download_output_dir)
-        elif getattr(args, 'workout_id', None):
+        
+        if getattr(args, 'missing', False):
+            logging.info(f"Finding and downloading missing activities...")
+            # Get all activities from Garmin Connect
+            all_activities = client.get_all_activities(limit=getattr(args, "limit", 50))
+            
+            # Get already downloaded activities
+            downloaded_ids = client.get_downloaded_activity_ids(download_output_dir)
+            
+            # Find missing activities (those not in downloaded_ids)
+            missing_activities = [activity for activity in all_activities
+                                if str(activity['activityId']) not in downloaded_ids]
+            
+            if getattr(args, 'dry_run', False):
+                logging.info(f"DRY RUN: Would download {len(missing_activities)} missing activities:")
+                for activity in missing_activities:
+                    activity_id = activity['activityId']
+                    activity_name = activity.get('activityName', 'Unknown')
+                    activity_date = activity.get('startTimeLocal', 'Unknown date')
+                    logging.info(f"  ID: {activity_id}, Name: {activity_name}, Date: {activity_date}")
+                return []
+            
+            logging.info(f"Downloading {len(missing_activities)} missing activities...")
+            for activity in missing_activities:
+                activity_id = activity['activityId']
+                try:
+                    activity_path = client.download_activity_original(
+                        str(activity_id), force_download=getattr(args, "force", False)
+                    )
+                    if activity_path:
+                        dest_path = download_output_dir / activity_path.name
+                        try:
+                            if activity_path.resolve() != dest_path.resolve():
+                                if dest_path.exists():
+                                    dest_path.unlink()
+                                activity_path.rename(dest_path)
+                        except Exception as move_err:
+                            logging.error(
+                                f"Failed to move {activity_path} to {dest_path}: {move_err}"
+                            )
+                            dest_path = activity_path
+                        downloaded_activities.append({"file_path": dest_path})
+                        logging.info(f"Downloaded activity {activity_id} to {dest_path}")
+                except Exception as e:
+                    logging.error(f"Error downloading activity {activity_id}: {e}")
+                    
+        elif getattr(args, 'all', False):
+            if getattr(args, 'dry_run', False):
+                logging.info(f"DRY RUN: Would download up to {getattr(args, 'limit', 50)} activities")
+                return []
+                
+            logging.info(f"Downloading up to {getattr(args, 'limit', 50)} activities...")
+            downloaded_activities = client.download_all_workouts(
+                limit=getattr(args, "limit", 50),
+                output_dir=download_output_dir,
+                force_download=getattr(args, "force", False),
+            )
+        elif getattr(args, "workout_id", None):
+            if getattr(args, 'dry_run', False):
+                logging.info(f"DRY RUN: Would download workout {args.workout_id}")
+                return []
+                
             logging.info(f"Downloading workout {args.workout_id}...")
-            activity_path = client.download_activity_original(str(args.workout_id))
+            activity_path = client.download_activity_original(
+                str(args.workout_id), force_download=getattr(args, "force", False)
+            )
             if activity_path:
                 dest_path = download_output_dir / activity_path.name
                 try:
@@ -297,12 +367,21 @@ class GarminAnalyser:
                             dest_path.unlink()
                         activity_path.rename(dest_path)
                 except Exception as move_err:
-                    logging.error(f"Failed to move {activity_path} to {dest_path}: {move_err}")
+                    logging.error(
+                        f"Failed to move {activity_path} to {dest_path}: {move_err}"
+                    )
                     dest_path = activity_path
-                downloaded_activities.append({'file_path': dest_path})
+                downloaded_activities.append({"file_path": dest_path})
         else:
+            if getattr(args, 'dry_run', False):
+                logging.info("DRY RUN: Would download latest cycling activity")
+                return []
+                
             logging.info("Downloading latest cycling activity...")
-            activity_path = client.download_latest_workout(output_dir=download_output_dir)
+            activity_path = client.download_latest_workout(
+                output_dir=download_output_dir,
+                force_download=getattr(args, "force", False),
+            )
             if activity_path:
                 downloaded_activities.append({'file_path': activity_path})
 
